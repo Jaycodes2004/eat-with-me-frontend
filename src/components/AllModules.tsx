@@ -3,6 +3,7 @@ import { Card, CardContent } from './ui/card';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+// testing icons
 import { 
   Home, 
   ShoppingCart, 
