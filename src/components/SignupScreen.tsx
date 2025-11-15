@@ -43,6 +43,8 @@ interface SignupScreenProps {
 
 export function SignupScreen({ onSignup, onBackToLogin }: SignupScreenProps) {
   const { updateSettings } = useAppContext();
+  const [showIdPopup, setShowIdPopup] = useState(false);
+  const [createdRestaurantId, setCreatedRestaurantId] = useState<string | null>(null);
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -250,8 +252,10 @@ export function SignupScreen({ onSignup, onBackToLogin }: SignupScreenProps) {
         whatsappPhoneNumber: '',
       });
 
-      toast.success('Restaurant created successfully! You can now sign in with your credentials.');
-      onSignup({ restaurantId, email: formData.email.trim() });
+      setCreatedRestaurantId(restaurantId);
+      setShowIdPopup(true);
+      toast.success('Restaurant created successfully!');
+      // Delay onSignup until popup is closed
     } catch (err) {
       const axiosError = err as AxiosError<{ message?: string }>;
       const fallbackMessage = 'Failed to create restaurant. Please try again.';
@@ -267,6 +271,29 @@ export function SignupScreen({ onSignup, onBackToLogin }: SignupScreenProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Restaurant ID Popup */}
+      {showIdPopup && createdRestaurantId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center border-2 border-primary">
+            <h2 className="text-2xl font-bold mb-4 text-primary">Your Unique Restaurant ID</h2>
+            <p className="mb-4 text-muted-foreground">This is your unique Restaurant ID. <span className="font-semibold text-primary">Keep it safe</span> — you will need it to log in and for support.</p>
+            <div className="mb-6">
+              <span className="px-4 py-2 rounded-lg bg-gradient-to-r from-primary to-purple-600 text-white text-lg font-mono tracking-widest shadow-lg border border-primary">
+                {createdRestaurantId}
+              </span>
+            </div>
+            <Button
+              className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
+              onClick={() => {
+                setShowIdPopup(false);
+                onSignup({ restaurantId: createdRestaurantId, email: formData.email.trim() });
+              }}
+            >
+              Continue
+            </Button>
+          </div>
+        </div>
+      )}
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div

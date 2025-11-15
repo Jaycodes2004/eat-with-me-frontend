@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const apiBaseUrl = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL)
   ? import.meta.env.VITE_API_URL
-  : '';
+  : 'Error: API base URL is not defined in environment variables';
 
 const apiClient = axios.create({
   baseURL: apiBaseUrl,
