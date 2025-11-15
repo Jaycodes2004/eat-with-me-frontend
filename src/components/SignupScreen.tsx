@@ -68,59 +68,46 @@ export function SignupScreen({ onSignup, onBackToLogin }: SignupScreenProps) {
 
   // Fetch plans from backend so signup shows dynamic admin-configured plans
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const resp = await apiClient.get('/plans');
-        if (mounted && Array.isArray(resp.data?.plans)) {
-          setPlans(resp.data.plans);
-        }
-      } catch (err) {
-        // If plans endpoint fails, fall back to a minimal local plan set
-        console.warn('Failed to load plans from server, using local defaults', err);
-        if (mounted && plans.length === 0) {
-          setPlans([
-            {
-              id: 'starter',
-              name: 'Starter',
-              description: 'Free starter plan for small restaurants',
-              monthlyPrice: 0,
-              currency: '$',
-              period: 'per month',
-              features: ['Basic POS', 'Up to 100 orders/month', 'Email support'],
-              popular: false,
-              color: 'from-gray-400 to-gray-600',
-              allowedModules: ['POS', 'Reports']
-            },
-            {
-              id: 'pro',
-              name: 'Pro',
-              description: 'Advanced plan for growing businesses',
-              monthlyPrice: 49,
-              currency: '$',
-              period: 'per month',
-              features: ['All Starter features', 'Unlimited orders', 'Inventory & Staff Management', 'Priority support'],
-              popular: true,
-              color: 'from-purple-500 to-pink-500',
-              allowedModules: ['POS', 'Reports', 'Inventory', 'Staff', 'AI Insights']
-            },
-            {
-              id: 'enterprise',
-              name: 'Enterprise',
-              description: 'Custom plan for large chains',
-              monthlyPrice: 199,
-              currency: '$',
-              period: 'per month',
-              features: ['All Pro features', 'Custom integrations', 'Dedicated account manager', '24/7 support'],
-              popular: false,
-              color: 'from-yellow-500 to-orange-500',
-              allowedModules: ['All modules']
-            }
-          ]);
-        }
+    // Only use static plans for signup, do not fetch from backend
+    setPlans([
+      {
+        id: 'starter',
+        name: 'Starter',
+        description: 'Free starter plan for small restaurants',
+        monthlyPrice: 0,
+        currency: '$',
+        period: 'per month',
+        features: ['Basic POS', 'Up to 100 orders/month', 'Email support'],
+        popular: false,
+        color: 'from-gray-400 to-gray-600',
+        allowedModules: ['POS', 'Reports']
+      },
+      {
+        id: 'pro',
+        name: 'Pro',
+        description: 'Advanced plan for growing businesses',
+        monthlyPrice: 49,
+        currency: '$',
+        period: 'per month',
+        features: ['All Starter features', 'Unlimited orders', 'Inventory & Staff Management', 'Priority support'],
+        popular: true,
+        color: 'from-purple-500 to-pink-500',
+        allowedModules: ['POS', 'Reports', 'Inventory', 'Staff', 'AI Insights']
+      },
+      {
+        id: 'enterprise',
+        name: 'Enterprise',
+        description: 'Custom plan for large chains',
+        monthlyPrice: 199,
+        currency: '$',
+        period: 'per month',
+        features: ['All Pro features', 'Custom integrations', 'Dedicated account manager', '24/7 support'],
+        popular: false,
+        color: 'from-yellow-500 to-orange-500',
+        allowedModules: ['All modules']
       }
-    })();
-    return () => { mounted = false; };
+    ]);
+    return () => { };
   }, []);
 
   const handleInputChange = (field: string, value: string) => {
