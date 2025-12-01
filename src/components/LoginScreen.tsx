@@ -104,7 +104,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     setError(null);
 
     try {
-      const response = await apiClient.post<LoginResponsePayload>('/login', { email, password }, {
+      const response = await apiClient.post<LoginResponsePayload>('/login', { email, password, restaurantId }, {
         headers: {
           'X-Restaurant-Id': restaurantId,
         },
