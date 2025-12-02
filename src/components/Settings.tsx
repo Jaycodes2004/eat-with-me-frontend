@@ -62,22 +62,37 @@ import {
 import apiClient from '../lib/api';
 
 export function Settings() {
-  const { settings, updateSettings } = useAppContext();
-  const [activeTab, setActiveTab] = useState('business');
-  const [saved, setSaved] = useState(false);
-  const [loading, setLoading] = useState(true);  // ADD THIS
-  const [copiedId, setCopiedId] = useState(false);  // ADD THIS
-  
-  
-  const [businessInfo, setBusinessInfo] = useState({
-    restaurantId: '',  // ADD THIS
-    name: '',
-    address: '',
-    phone: '',
-    email: '',
-    taxNumber: '',
-    fssaiNumber: ''
-  });
+	const { settings, updateSettings } = useAppContext();
+	const [activeTab, setActiveTab] = useState('business');
+	const [saved, setSaved] = useState(false);
+	const [loading, setLoading] = useState(true); // ADD THIS
+	const [copiedId, setCopiedId] = useState(false); // ADD THIS
+
+	const [businessInfo, setBusinessInfo] = useState({
+		restaurantId: '', // ADD THIS
+		name: '',
+		address: '',
+		phone: '',
+		email: '',
+		taxNumber: '',
+		fssaiNumber: '',
+	});
+
+	useEffect(() => {
+		const fetchTenant = async () => {
+			try {
+				const response = await apiClient.get('/tenant');
+				const tenantData = response.data;
+
+				setBusinessInfo({
+					restaurantId: tenantData.restaurantId || settings.restaurantId || '',
+					name: tenantData.restaurantName || settings.restaurantName || '',
+					address: tenantData.businessAddress || settings.businessAddress || '',
+					phone: tenantData.businessPhone || settings.businessPhone || '',
+					email: tenantData.businessEmail || settings.businessEmail || '',
+					taxNumber: tenantData.taxNumber || settings.taxNumber || '',
+					fssaiNumber: tenantData.fssaiNumber || settings.fssaiNumber || '',
+				});
 
 				updateSettings({
 					restaurantName: tenantData.restaurantName || '',
@@ -87,27 +102,35 @@ export function Settings() {
 					country: tenantData.country || settings.country,
 					currency: tenantData.currency || settings.currency,
 					currencySymbol: tenantData.currencySymbol || settings.currencySymbol,
-					taxNumber: settings.taxNumber,
-					fssaiNumber: settings.fssaiNumber,
+					taxNumber: tenantData.taxNumber || settings.taxNumber,
+					fssaiNumber: tenantData.fssaiNumber || settings.fssaiNumber,
 				});
 			} catch (error) {
 				console.error('Failed to fetch tenant data:', error);
 				setBusinessInfo({
-					restaurantId: '',
-					name: '',
-					address: '',
-					phone: '',
-					email: '',
-					taxNumber: '',
-					fssaiNumber: '',
+					restaurantId: settings.restaurantId || '',
+					name: settings.restaurantName || '',
+					address: settings.businessAddress || '',
+					phone: settings.businessPhone || '',
+					email: settings.businessEmail || '',
+					taxNumber: settings.taxNumber || '',
+					fssaiNumber: settings.fssaiNumber || '',
 				});
 			} finally {
 				setLoading(false);
 			}
 		};
 
-		fetchTenantData();
-	}, []);
+		fetchTenant();
+	}, [
+		settings.restaurantId,
+		settings.restaurantName,
+		settings.businessAddress,
+		settings.businessPhone,
+		settings.businessEmail,
+		settings.taxNumber,
+		settings.fssaiNumber,
+	]);
 
 	const handleCopyRestaurantId = () => {
 		if (!businessInfo.restaurantId) return;
@@ -1533,22 +1556,30 @@ export function Settings() {
 										</div>
 									</div>
 
-                  <div className="flex gap-3">
-                    <Button className="flex-1" variant="outline">
-                      <CreditCard className="mr-2" size={16} />
-                      Test Connection
-                    </Button>
-                    <Button className="flex-1">
-                      <Check className="mr-2" size={16} />
-                      Save Configuration
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
+									<div className='flex gap-3'>
+										<Button
+											className='flex-1'
+											variant='outline'>
+											<CreditCard
+												className='mr-2'
+												size={16}
+											/>
+											Test Connection
+										</Button>
+										<Button className='flex-1'>
+											<Check
+												className='mr-2'
+												size={16}
+											/>
+											Save Configuration
+										</Button>
+									</div>
+								</CardContent>
+							</Card>
+						</CardContent>
+					</Card>
+				</TabsContent>
+			</Tabs>
+		</div>
+	);
 }
