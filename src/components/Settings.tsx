@@ -62,46 +62,22 @@ import {
 import apiClient from '../lib/api';
 
 export function Settings() {
-	const {
-		settings,
-		updateSettings,
-		addTaxRule,
-		updateTaxRule,
-		deleteTaxRule,
-		calculateTaxes,
-	} = useAppContext();
-
-	const [activeTab, setActiveTab] = useState('business');
-	const [saved, setSaved] = useState(false);
-	const [loading, setLoading] = useState(true);
-	const [copiedId, setCopiedId] = useState(false);
-
-	const [businessInfo, setBusinessInfo] = useState({
-		restaurantId: '',
-		name: '',
-		address: '',
-		phone: '',
-		email: '',
-		taxNumber: '',
-		fssaiNumber: '',
-	});
-
-	useEffect(() => {
-		const fetchTenantData = async () => {
-			try {
-				setLoading(true);
-				const response = await apiClient.get('/tenant');
-				const tenantData = response.data;
-
-				setBusinessInfo({
-					restaurantId: tenantData.restaurantId || tenantData.id || '',
-					name: tenantData.restaurantName || '',
-					address: tenantData.businessAddress || '',
-					phone: tenantData.businessPhone || '',
-					email: tenantData.businessEmail || '',
-					taxNumber: '',
-					fssaiNumber: '',
-				});
+  const { settings, updateSettings } = useAppContext();
+  const [activeTab, setActiveTab] = useState('business');
+  const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);  // ADD THIS
+  const [copiedId, setCopiedId] = useState(false);  // ADD THIS
+  
+  
+  const [businessInfo, setBusinessInfo] = useState({
+    restaurantId: '',  // ADD THIS
+    name: '',
+    address: '',
+    phone: '',
+    email: '',
+    taxNumber: '',
+    fssaiNumber: ''
+  });
 
 				updateSettings({
 					restaurantName: tenantData.restaurantName || '',
@@ -1557,30 +1533,22 @@ export function Settings() {
 										</div>
 									</div>
 
-									<div className='flex gap-3'>
-										<Button
-											className='flex-1'
-											variant='outline'>
-											<CreditCard
-												className='mr-2'
-												size={16}
-											/>
-											Test Connection
-										</Button>
-										<Button className='flex-1'>
-											<Check
-												className='mr-2'
-												size={16}
-											/>
-											Save Configuration
-										</Button>
-									</div>
-								</CardContent>
-							</Card>
-						</CardContent>
-					</Card>
-				</TabsContent>
-			</Tabs>
-		</div>
-	);
+                  <div className="flex gap-3">
+                    <Button className="flex-1" variant="outline">
+                      <CreditCard className="mr-2" size={16} />
+                      Test Connection
+                    </Button>
+                    <Button className="flex-1">
+                      <Check className="mr-2" size={16} />
+                      Save Configuration
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
 }
