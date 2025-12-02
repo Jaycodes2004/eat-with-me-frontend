@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -11,6 +11,7 @@ import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { useAppContext, countryCurrencyMap, TaxRule } from '../contexts/AppContext';
 import { toast } from 'sonner@2.0.3';
+
 import { 
   Building, 
   Receipt, 
@@ -35,29 +36,99 @@ import {
   Trash2,
   Percent,
   AlertTriangle,
-  Loader2
+  Loader2,Copy
 } from 'lucide-react';
 
+
+import apiClient from '../lib/api';
+
 export function Settings() {
-  const { settings, updateSettings, addTaxRule, updateTaxRule, deleteTaxRule, calculateTaxes } = useAppContext();
+  const { settings, updateSettings, ... } = useAppContext();
   const [activeTab, setActiveTab] = useState('business');
   const [saved, setSaved] = useState(false);
-  const [whatsappSettings, setWhatsappSettings] = useState({
-    apiKey: settings.whatsappApiKey,
-    phoneNumber: settings.whatsappPhoneNumber,
-    enableMarketing: false
+  const [loading, setLoading] = useState(true);  // ADD THIS
+  const [copiedId, setCopiedId] = useState(false);  // ADD THIS
+  
+  
+  const [businessInfo, setBusinessInfo] = useState({
+    restaurantId: '',  // ADD THIS
+    name: '',
+    address: '',
+    phone: '',
+    email: '',
+    taxNumber: '',
+    fssaiNumber: ''
   });
+
+  useEffect(() => {
+    const fetchTenantData = async () => {
+      try {
+        setLoading(true);
+        const response = await apiClient.get('/tenant');
+        const tenantData = response.data;
+
+        setBusinessInfo({
+          restaurantId: tenantData.restaurantId || tenantData.id || '',
+          name: tenantData.restaurantName || '',
+          address: tenantData.businessAddress || '',
+          phone: tenantData.businessPhone || '',
+          email: tenantData.businessEmail || '',
+          taxNumber: '',
+          fssaiNumber: ''
+        });
+
+        updateSettings({
+          restaurantName: tenantData.restaurantName || '',
+          businessAddress: tenantData.businessAddress || '',
+          businessPhone: tenantData.businessPhone || '',
+          businessEmail: tenantData.businessEmail || '',
+          country: tenantData.country || settings.country,
+          currency: tenantData.currency || settings.currency,
+          currencySymbol: tenantData.currencySymbol || settings.currencySymbol,
+          taxNumber: settings.taxNumber,
+          fssaiNumber: settings.fssaiNumber
+        });
+      } catch (error) {
+        console.error('Failed to fetch tenant data:', error);
+        setBusinessInfo({
+          restaurantId: '',
+          name: '',
+          address: '',
+          phone: '',
+          email: '',
+          taxNumber: '',
+          fssaiNumber: ''
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTenantData();
+  }, []);
+
+  // ADD THIS FUNCTION after useEffect and before handleAddTaxRule
+  const handleCopyRestaurantId = () => {
+    navigator.clipboard.writeText(businessInfo.restaurantId);
+    setCopiedId(true);
+    toast.success('Restaurant ID copied to clipboard');
+    setTimeout(() => setCopiedId(false), 2000);
+  };
+
 
   const countries = Object.keys(countryCurrencyMap);
 
-  const [businessInfo, setBusinessInfo] = useState({
-    name: settings.restaurantName,
-    address: settings.businessAddress,
-    phone: settings.businessPhone,
-    email: settings.businessEmail,
-    taxNumber: settings.taxNumber,
-    fssaiNumber: settings.fssaiNumber
-  });
+  // const [businessInfo, setBusinessInfo] = useState({
+  //   name: settings.restaurantName,
+  //   address: settings.businessAddress,
+  //   phone: settings.businessPhone,
+  //   email: settings.businessEmail,
+  //   taxNumber: settings.taxNumber,
+  //   fssaiNumber: settings.fssaiNumber
+  // });
+
+  
+
 
   const [newTaxRule, setNewTaxRule] = useState<Partial<TaxRule>>({
     name: '',
@@ -66,6 +137,7 @@ export function Settings() {
     description: '',
     isActive: true
   });
+
 
   const [showTaxDialog, setShowTaxDialog] = useState(false);
   const [editingTaxId, setEditingTaxId] = useState<string | null>(null);
@@ -176,30 +248,49 @@ export function Settings() {
     { id: '4', name: 'Waiter', email: `waiter@${settings.restaurantName.toLowerCase().replace(/\s+/g, '')}.com`, role: 'Staff' }
   ]);
 
-  const handleSave = () => {
-    // Update app settings with all business information
-    updateSettings({
-      restaurantName: businessInfo.name,
-      businessAddress: businessInfo.address,
-      businessPhone: businessInfo.phone,
-      businessEmail: businessInfo.email,
-      taxNumber: businessInfo.taxNumber,
-      fssaiNumber: businessInfo.fssaiNumber,
-      whatsappApiKey: whatsappSettings.apiKey,
-      whatsappPhoneNumber: whatsappSettings.phoneNumber
-    });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    // REPLACE the entire handleSave function with this:
+  const handleSave = async () => {
+    try {
+      await apiClient.put('/tenant', {
+        restaurantName: businessInfo.name,
+        businessAddress: businessInfo.address,
+        businessPhone: businessInfo.phone,
+        businessEmail: businessInfo.email,
+        country: settings.country,
+        currency: settings.currency,
+        currencySymbol: settings.currencySymbol,
+        taxNumber: businessInfo.taxNumber,
+        fssaiNumber: businessInfo.fssaiNumber
+      });
+
+      updateSettings({
+        restaurantName: businessInfo.name,
+        businessAddress: businessInfo.address,
+        businessPhone: businessInfo.phone,
+        businessEmail: businessInfo.email,
+        taxNumber: businessInfo.taxNumber,
+        fssaiNumber: businessInfo.fssaiNumber
+      });
+
+      setSaved(true);
+      toast.success('Settings saved successfully!');
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      toast.error('Failed to save settings. Please try again.');
+    }
   };
 
-  const handleCountryChange = (country: string) => {
-    const countryData = countryCurrencyMap[country];
-    updateSettings({
-      country,
-      currency: countryData.currency,
-      currencySymbol: countryData.symbol
-    });
-  };
+  if (loading) {
+    return (
+      <div className="flex-1 bg-background p-6 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 bg-background p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 animate-slide-up pb-24">
