@@ -266,9 +266,11 @@ export function SignupScreen({ onSignup, onBackToLogin }: SignupScreenProps) {
 				country: formData.country,
 				currency: countryCurrencyMap[formData.country].currency,
 				currencySymbol: countryCurrencyMap[formData.country].symbol,
-				businessAddress: formData.address, 
-				businessPhone: formData.phone, 
-				businessEmail: formData.email, 
+				businessAddress: formData.address,
+				businessPhone: formData.phone,
+				businessEmail: formData.email,
+				whatsappApiKey: '',
+				whatsappPhoneNumber: '',
 			});
 
 			setCreatedRestaurantId(restaurantId);
