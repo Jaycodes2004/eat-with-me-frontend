@@ -43,7 +43,7 @@ import {
 import apiClient from '../lib/api';
 
 export function Settings() {
-  const { settings, updateSettings, ... } = useAppContext();
+  const { settings, updateSettings } = useAppContext();
   const [activeTab, setActiveTab] = useState('business');
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);  // ADD THIS
