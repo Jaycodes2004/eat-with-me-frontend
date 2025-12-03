@@ -624,6 +624,7 @@ export interface AppSettings {
   businessEmail: string;
   taxNumber: string;
   fssaiNumber: string;
+  restaurantId?: string;
 }
 
 interface AppContextType {
