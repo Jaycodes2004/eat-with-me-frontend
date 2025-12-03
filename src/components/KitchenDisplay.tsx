@@ -883,13 +883,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from './ui/select';
-import {
 	Dialog,
 	DialogContent,
 	DialogDescription,
@@ -925,8 +918,9 @@ export function KitchenDisplay() {
 		settings,
 	} = useAppContext();
 
+	// active = pending + preparing + completed (ready to serve)
 	const activeOrders = orders.filter((order) =>
-		['new', 'preparing', 'ready'].includes(order.status)
+		['pending', 'preparing', 'completed'].includes(order.status)
 	);
 	const completedOrders = getOrdersByStatus('completed');
 
@@ -958,23 +952,20 @@ export function KitchenDisplay() {
 		}
 	});
 
+	// kitchen transitions: pending -> preparing -> completed
 	const updateOrderStatus = (orderId: string, newStatus: string) => {
-		if (newStatus === 'served') {
-			updateOrder(orderId, {
-				status: 'completed',
-				completedAt: new Date().toLocaleTimeString('en-US', {
-					hour: '2-digit',
-					minute: '2-digit',
-					hour12: true,
-				}),
-				actualCookingTime: Math.floor(Math.random() * 10) + 15,
-			});
-		} else {
-			updateOrder(orderId, {
-				status: newStatus,
-				preparedBy: newStatus === 'preparing' ? 'Chef Kumar' : undefined,
-			});
-		}
+		updateOrder(orderId, {
+			status: newStatus,
+			preparedBy: newStatus === 'preparing' ? 'Chef Kumar' : undefined,
+			completedAt:
+				newStatus === 'completed'
+					? new Date().toLocaleTimeString('en-US', {
+							hour: '2-digit',
+							minute: '2-digit',
+							hour12: true,
+					  })
+					: undefined,
+		});
 	};
 
 	const getFilteredOrders = (orderList: any[]) => {
@@ -1021,14 +1012,12 @@ export function KitchenDisplay() {
 
 	const getStatusColor = (status: string) => {
 		switch (status) {
-			case 'new':
+			case 'pending':
 				return 'bg-blue-100 text-blue-800 border-blue-200';
 			case 'preparing':
 				return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-			case 'ready':
+			case 'completed':
 				return 'bg-green-100 text-green-800 border-green-200';
-			case 'served':
-				return 'bg-gray-100 text-gray-800 border-gray-200';
 			default:
 				return 'bg-gray-100 text-gray-800 border-gray-200';
 		}
@@ -1156,7 +1145,7 @@ export function KitchenDisplay() {
 								</div>
 								{item.notes && (
 									<div className='text-xs text-orange-600 mt-1'>
-										<MessageSquare className='w-3 h-3 inline mr-1' />
+										<MessageCircle className='w-3 h-3 inline mr-1' />
 										{item.notes}
 									</div>
 								)}
@@ -1208,7 +1197,7 @@ export function KitchenDisplay() {
 					</Button>
 
 					<div className='flex-1 flex gap-2'>
-						{order.status === 'new' && (
+						{order.status === 'pending' && (
 							<Button
 								className='flex-1'
 								onClick={() => updateOrderStatus(order.id, 'preparing')}>
@@ -1220,18 +1209,9 @@ export function KitchenDisplay() {
 						{order.status === 'preparing' && (
 							<Button
 								className='flex-1'
-								onClick={() => updateOrderStatus(order.id, 'ready')}>
+								onClick={() => updateOrderStatus(order.id, 'completed')}>
 								<CheckCircle className='w-4 h-4 mr-2' />
-								Mark Ready
-							</Button>
-						)}
-
-						{order.status === 'ready' && (
-							<Button
-								className='flex-1 bg-green-600 hover:bg-green-700'
-								onClick={() => updateOrderStatus(order.id, 'served')}>
-								<Users className='w-4 h-4 mr-2' />
-								Mark Served
+								Mark Completed
 							</Button>
 						)}
 
