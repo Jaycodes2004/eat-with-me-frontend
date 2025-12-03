@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import apiClient from './api';
 
-type KitchenOrder = any; // replace with your real order type if you have one
+type KitchenOrder = any; // replace with your actual type if you have one
 
 type KitchenEvent =
   | { type: 'created'; order: KitchenOrder }
@@ -18,23 +18,23 @@ export function useKitchenLiveUpdates(
     const baseURL = (apiClient.defaults.baseURL || '').replace(/\/$/, '');
     const url = `${baseURL}/kitchen/stream`;
 
-    const eventSource = new EventSource(url, { withCredentials: true });
+    const es = new EventSource(url, { withCredentials: true });
 
-    eventSource.onmessage = (event) => {
+    es.onmessage = (event) => {
       try {
         const data: KitchenEvent = JSON.parse(event.data);
         onEvent(data);
       } catch {
-        // ignore bad messages
+        // ignore malformed messages
       }
     };
 
-    eventSource.onerror = () => {
-      eventSource.close();
+    es.onerror = () => {
+      es.close();
     };
 
     return () => {
-      eventSource.close();
+      es.close();
     };
   }, [enabled, onEvent]);
 }
