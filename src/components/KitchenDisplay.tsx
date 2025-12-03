@@ -913,6 +913,8 @@ import {
 } from 'lucide-react';
 import { useKitchenLiveUpdates } from '../lib/useKitchenLiveUpdates';
 
+type KitchenOrder = any;
+
 export function KitchenDisplay() {
 	const {
 		orders,
@@ -923,49 +925,41 @@ export function KitchenDisplay() {
 		settings,
 	} = useAppContext();
 
-	// Filter orders for kitchen display (only active orders)
 	const activeOrders = orders.filter((order) =>
 		['new', 'preparing', 'ready'].includes(order.status)
 	);
-
-	// Get completed orders for history tab
 	const completedOrders = getOrdersByStatus('completed');
 
-	// Search and filter states
 	const [searchTerm, setSearchTerm] = useState('');
 	const [selectedDate, setSelectedDate] = useState('today');
 	const [selectedStatus, setSelectedStatus] = useState('all');
 	const [selectedSource, setSelectedSource] = useState('all');
 	const [showOrderDetails, setShowOrderDetails] = useState(false);
 	const [selectedOrderForDetails, setSelectedOrderForDetails] =
-		useState<any>(null);
+		useState<KitchenOrder | null>(null);
 	const [activeTab, setActiveTab] = useState('live');
 
-	// Live updates
 	const restaurantId =
-		localStorage.getItem('restaurantId') || settings?.restaurantId;
+		(typeof window !== 'undefined' && localStorage.getItem('restaurantId')) ||
+		settings?.restaurantId;
+
 	useKitchenLiveUpdates(!!restaurantId, (event) => {
 		if (event.type === 'created' && event.order) {
-			// add only if not already present
 			const exists = orders.some((o) => o.id === event.order.id);
-			if (!exists) {
-				addOrder(event.order);
-			}
+			if (!exists) addOrder(event.order);
 		}
 
 		if (event.type === 'updated' && event.order) {
-			// update full order so UI reflects all changes
 			updateOrder(event.order.id, event.order);
 		}
 
-		if (event.type === 'deleted' && event.order) {
-			deleteOrder(event.order.id);
+		if (event.type === 'deleted' && event.orderId) {
+			deleteOrder(event.orderId);
 		}
 	});
 
-	const updateOrderStatus = (orderId: string, newStatus: any) => {
+	const updateOrderStatus = (orderId: string, newStatus: string) => {
 		if (newStatus === 'served') {
-			// Update order status to completed when served
 			updateOrder(orderId, {
 				status: 'completed',
 				completedAt: new Date().toLocaleTimeString('en-US', {
@@ -973,7 +967,7 @@ export function KitchenDisplay() {
 					minute: '2-digit',
 					hour12: true,
 				}),
-				actualCookingTime: Math.floor(Math.random() * 10) + 15, // Simulated actual time
+				actualCookingTime: Math.floor(Math.random() * 10) + 15,
 			});
 		} else {
 			updateOrder(orderId, {
@@ -983,7 +977,6 @@ export function KitchenDisplay() {
 		}
 	};
 
-	// Search and filter functions
 	const getFilteredOrders = (orderList: any[]) => {
 		return orderList.filter((order) => {
 			const matchesSearch =
@@ -991,7 +984,7 @@ export function KitchenDisplay() {
 				order.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 				order.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 				order.tableNumber?.toString().includes(searchTerm) ||
-				order.items.some((item) =>
+				order.items.some((item: any) =>
 					item.name.toLowerCase().includes(searchTerm.toLowerCase())
 				);
 
@@ -1054,9 +1047,8 @@ export function KitchenDisplay() {
 		}
 	};
 
-	const filterOrdersByStatus = (status: string) => {
-		return activeOrders.filter((order) => order.status === status);
-	};
+	const filterOrdersByStatus = (status: string) =>
+		activeOrders.filter((order) => order.status === status);
 
 	const getOrderSourceIcon = (source: string) => {
 		switch (source) {
@@ -1152,9 +1144,8 @@ export function KitchenDisplay() {
 			</CardHeader>
 
 			<CardContent className='space-y-4'>
-				{/* Order Items */}
 				<div className='space-y-2'>
-					{order.items.map((item) => (
+					{order.items.map((item: any) => (
 						<div
 							key={item.id}
 							className='flex justify-between items-center bg-accent/50 p-3 rounded-lg'>
@@ -1179,7 +1170,6 @@ export function KitchenDisplay() {
 					))}
 				</div>
 
-				{/* Special Instructions */}
 				{order.specialInstructions && (
 					<div className='bg-yellow-50 border border-yellow-200 p-3 rounded-lg'>
 						<div className='flex items-start gap-2'>
@@ -1196,7 +1186,6 @@ export function KitchenDisplay() {
 					</div>
 				)}
 
-				{/* Timer */}
 				<div className='flex items-center justify-between bg-accent/30 p-3 rounded-lg'>
 					<div className='flex items-center gap-2'>
 						<Timer className='w-4 h-4 text-muted-foreground' />
@@ -1209,7 +1198,6 @@ export function KitchenDisplay() {
 					</div>
 				</div>
 
-				{/* Action Buttons */}
 				<div className='flex gap-2 pt-2'>
 					<Button
 						variant='outline'
@@ -1275,7 +1263,7 @@ export function KitchenDisplay() {
 					<Badge
 						variant='outline'
 						className='bg-green-50'>
-						<div className='w-2 h-2 bg-green-500 rounded-full mr-2'></div>
+						<div className='w-2 h-2 bg-green-500 rounded-full mr-2' />
 						Live
 					</Badge>
 					<Button
@@ -1287,7 +1275,6 @@ export function KitchenDisplay() {
 				</div>
 			</div>
 
-			{/* Main Tabs */}
 			<Tabs
 				value={activeTab}
 				onValueChange={setActiveTab}
@@ -1333,7 +1320,7 @@ export function KitchenDisplay() {
 						</Card>
 						<Card className='p-4 text-center'>
 							<div className='text-2xl font-bold text-primary'>
-								{orders.length}
+								{activeOrders.length}
 							</div>
 							<div className='text-sm text-muted-foreground'>Total Active</div>
 						</Card>
@@ -1348,7 +1335,7 @@ export function KitchenDisplay() {
 						defaultValue='all'
 						className='w-full'>
 						<TabsList className='grid w-full grid-cols-4'>
-							<TabsTrigger value='all'>All ({orders.length})</TabsTrigger>
+							<TabsTrigger value='all'>All ({activeOrders.length})</TabsTrigger>
 							<TabsTrigger value='new'>
 								New ({filterOrdersByStatus('new').length})
 							</TabsTrigger>
@@ -1364,7 +1351,7 @@ export function KitchenDisplay() {
 							value='all'
 							className='space-y-4'>
 							<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
-								{orders.map((order) => (
+								{activeOrders.map((order) => (
 									<OrderCard
 										key={order.id}
 										order={order}
@@ -1569,7 +1556,7 @@ export function KitchenDisplay() {
 					<DialogHeader>
 						<DialogTitle className='flex items-center gap-2'>
 							<FileText className='w-5 h-5' />
-							Order Details -{' '}
+							Order Details –{' '}
 							{selectedOrderForDetails?.orderSource === 'dine-in'
 								? `Table ${selectedOrderForDetails?.tableNumber}`
 								: selectedOrderForDetails?.orderNumber}
@@ -1581,7 +1568,6 @@ export function KitchenDisplay() {
 
 					{selectedOrderForDetails && (
 						<div className='space-y-6'>
-							{/* Order Header Info */}
 							<div className='grid grid-cols-2 gap-4 p-4 bg-accent/50 rounded-lg'>
 								<div>
 									<Label>Order ID</Label>
@@ -1590,7 +1576,7 @@ export function KitchenDisplay() {
 									</div>
 								</div>
 								<div>
-									<Label>Date & Time</Label>
+									<Label>Date &amp; Time</Label>
 									<div className='text-sm'>
 										{selectedOrderForDetails.orderDate} at{' '}
 										{selectedOrderForDetails.orderTime}
@@ -1632,7 +1618,6 @@ export function KitchenDisplay() {
 								</div>
 							</div>
 
-							{/* Cooking Details */}
 							<div className='grid grid-cols-2 gap-4'>
 								<div>
 									<Label>Estimated Time</Label>
@@ -1664,11 +1649,10 @@ export function KitchenDisplay() {
 
 							<Separator />
 
-							{/* Order Items */}
 							<div>
 								<Label className='text-base'>Order Items</Label>
 								<div className='space-y-3 mt-2'>
-									{selectedOrderForDetails.items.map((item) => (
+									{selectedOrderForDetails.items.map((item: any) => (
 										<div
 											key={item.id}
 											className='flex justify-between items-center p-3 bg-accent/30 rounded-lg'>
@@ -1691,7 +1675,6 @@ export function KitchenDisplay() {
 								</div>
 							</div>
 
-							{/* Special Instructions */}
 							{selectedOrderForDetails.specialInstructions && (
 								<>
 									<Separator />
@@ -1709,7 +1692,6 @@ export function KitchenDisplay() {
 								</>
 							)}
 
-							{/* Customer Feedback (if available) */}
 							{selectedOrderForDetails.feedback && (
 								<>
 									<Separator />

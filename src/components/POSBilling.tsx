@@ -994,7 +994,13 @@ import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
 import { Input } from './ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
 import {
   Plus,
   Minus,
@@ -1010,7 +1016,7 @@ import {
   ShoppingBag,
   Table,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
 } from 'lucide-react';
 
 import * as XLSX from 'xlsx';
@@ -1049,13 +1055,14 @@ export function POSBilling() {
     calculateLoyaltyTier,
     generateReferralCode,
     handleReferral,
-    addNotification
+    addNotification,
   } = useAppContext();
 
   const [selectedCategory, setSelectedCategory] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showOrderTypeDialog, setShowOrderTypeDialog] = useState(false);
-  const [showCustomerDetailsDialog, setShowCustomerDetailsDialog] = useState(false);
+  const [showCustomerDetailsDialog, setShowCustomerDetailsDialog] =
+    useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
 
@@ -1064,25 +1071,27 @@ export function POSBilling() {
     customerName: '',
     customerPhone: '',
     paymentMethod: null,
-    referralCode: ''
+    referralCode: '',
   });
 
   // Extract unique categories
   const categories = [...new Set(contextMenuItems.map((item) => item.category))];
 
-  /** FIXED: setSelectedCategory(categories[0]) */
+  // Ensure a valid selected category
   useEffect(() => {
-    if (categories.length > 0 && (!selectedCategory || !categories.includes(selectedCategory))) {
+    if (
+      categories.length > 0 &&
+      (!selectedCategory || !categories.includes(selectedCategory))
+    ) {
       setSelectedCategory(categories[0]);
     }
   }, [categories, selectedCategory]);
 
   const menuItems = contextMenuItems;
   const filteredItems = menuItems.filter(
-    (item) => item.category === selectedCategory && item.available
+    (item) => item.category === selectedCategory && item.available,
   );
 
-  /** FIXED: Correct table name formatting */
   const availableTables = tables.map((table) => ({
     id: table.id,
     name: `Table ${table.number}`,
@@ -1097,7 +1106,7 @@ export function POSBilling() {
         ? 'Occupied'
         : table.status === 'reserved'
         ? 'Reserved'
-        : 'Available'
+        : 'Available',
   }));
 
   const addToCart = (item: any) => {
@@ -1105,8 +1114,8 @@ export function POSBilling() {
     if (existing) {
       setCart(
         cart.map((i) =>
-          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
-        )
+          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i,
+        ),
       );
     } else {
       setCart([...cart, { ...item, quantity: 1 }]);
@@ -1118,10 +1127,13 @@ export function POSBilling() {
       cart
         .map((item) =>
           item.id === id
-            ? { ...item, quantity: inc ? item.quantity + 1 : item.quantity - 1 }
-            : item
+            ? {
+                ...item,
+                quantity: inc ? item.quantity + 1 : item.quantity - 1,
+              }
+            : item,
         )
-        .filter((item) => item.quantity > 0)
+        .filter((item) => item.quantity > 0),
     );
   };
 
@@ -1148,7 +1160,7 @@ export function POSBilling() {
 
       return acc;
     },
-    { taxes: [] as Array<{ name: string; rate: number; amount: number }>, totalTax: 0 }
+    { taxes: [] as Array<{ name: string; rate: number; amount: number }>, totalTax: 0 },
   );
 
   const total = subtotal + taxCalculation.totalTax;
@@ -1164,20 +1176,19 @@ export function POSBilling() {
     setShowCustomerDetailsDialog(true);
   };
 
-  /** FIXED: correct string formatting */
   const handleTableSelect = async (tableId: string) => {
     const table = getTableById(tableId);
     if (!table) return;
 
     setOrderDetails((p) => ({
       ...p,
-      tableNumber: `Table ${table.number}`
+      tableNumber: `Table ${table.number}`,
     }));
 
     if (table.status === 'free') {
       await updateTable(tableId, {
         status: 'occupied',
-        lastOrderAt: new Date().toISOString()
+        lastOrderAt: new Date().toISOString(),
       });
     }
   };
@@ -1188,9 +1199,8 @@ export function POSBilling() {
     setShowInvoiceDialog(true);
   };
 
-  /** FIXED & CLEANED VERSION */
   const handleCompleteOrder = async () => {
-    if (!orderDetails.type) return;
+    if (!orderDetails.type || cart.length === 0) return;
 
     const payload: CreateOrderPayload = {
       tableNumber:
@@ -1207,8 +1217,8 @@ export function POSBilling() {
         name: i.name,
         quantity: i.quantity,
         price: i.price,
-        category: i.category
-      }))
+        category: i.category,
+      })),
     };
 
     const createdOrder = await createOrder(payload);
@@ -1217,16 +1227,17 @@ export function POSBilling() {
 
     const effectiveTotal = createdOrder.totalAmount ?? total;
 
-    /** Loyalty handling */
     if (orderDetails.customerPhone && orderDetails.customerName) {
-      const existing = customers.find((c) => c.phone === orderDetails.customerPhone);
+      const existing = customers.find(
+        (c) => c.phone === orderDetails.customerPhone,
+      );
 
       if (existing) {
         const points = awardLoyaltyPoints(existing.id, effectiveTotal);
         addNotification({
           title: 'Loyalty Points Earned!',
           message: `${existing.name} earned ${points} points`,
-          type: 'success'
+          type: 'success',
         });
       } else {
         const newId = `CUST${Date.now()}`;
@@ -1248,7 +1259,7 @@ export function POSBilling() {
           tags: ['New Customer'],
           status: 'active',
           referralCode,
-          referralCount: 0
+          referralCount: 0,
         });
 
         if (orderDetails.referralCode) {
@@ -1257,22 +1268,19 @@ export function POSBilling() {
       }
     }
 
-    /** Free table after dine-in */
     if (orderDetails.type === 'dine-in' && orderDetails.tableNumber) {
-      const tableNum = parseInt(orderDetails.tableNumber.replace('Table ', ''));
-      const table = tables.find((t) => t.number === tableNum);
+      const tableNumber = parseInt(
+        orderDetails.tableNumber.replace('Table ', ''),
+      );
+      const table = tables.find((t) => t.number === tableNumber);
       if (table) {
         await updateTable(table.id, {
-          status: 'free',
-          guests: undefined,
-          currentOrderId: null,
-          currentBillId: null,
-          lastOrderAt: new Date().toISOString()
+          status: 'occupied',
+          currentOrderId: createdOrder.id,
+          lastOrderAt: new Date().toISOString(),
         });
       }
     }
-
-    alert('Order completed and saved successfully!');
 
     setCart([]);
     setOrderDetails({
@@ -1280,27 +1288,23 @@ export function POSBilling() {
       customerName: '',
       customerPhone: '',
       paymentMethod: null,
-      referralCode: ''
+      referralCode: '',
     });
     setShowInvoiceDialog(false);
   };
 
-  /** FIXED: template strings */
   const sendWhatsAppInvoice = () => {
-    const message = `Hi ${orderDetails.customerName}, your order total is ${settings.currencySymbol}${total.toFixed(
-      2
-    )}. Thank you for visiting us!`;
-
-    const url = `https://wa.me/91${orderDetails.customerPhone}?text=${encodeURIComponent(
-      message
+    const message = `Hi ${orderDetails.customerName}, your order total is ${
+      settings.currencySymbol
+    }${total.toFixed(2)}. Thank you for visiting us!`;
+    const whatsappUrl = `https://wa.me/91${orderDetails.customerPhone}?text=${encodeURIComponent(
+      message,
     )}`;
-
-    window.open(url, '_blank');
+    window.open(whatsappUrl, '_blank');
   };
 
-  /** FIXED: invoice number template string */
   const downloadExcel = () => {
-    const data = {
+    const invoiceData: Record<string, any[][]> = {
       'Invoice Details': [
         ['Restaurant Name', 'Eat With Me'],
         ['Order Type', orderDetails.type === 'dine-in' ? 'Dine-In' : 'Takeaway'],
@@ -1311,34 +1315,44 @@ export function POSBilling() {
         ['Date & Time', new Date().toLocaleString()],
         ['Invoice #', `INV-${Date.now()}`],
         [],
-        ['Item Name', 'Qty', 'Unit Price', 'Total Price']
-      ]
+        ['Item Name', 'Quantity', 'Unit Price', 'Total Price'],
+      ],
     };
 
     cart.forEach((item) => {
-      data['Invoice Details'].push([
+      invoiceData['Invoice Details'].push([
         item.name,
         item.quantity.toString(),
         `${settings.currencySymbol}${item.price.toFixed(2)}`,
-        `${settings.currencySymbol}${(item.price * item.quantity).toFixed(2)}`
+        `${settings.currencySymbol}${(item.price * item.quantity).toFixed(2)}`,
       ]);
     });
 
-    data['Invoice Details'].push([]);
-    data['Invoice Details'].push(['', '', 'Subtotal:', subtotal.toFixed(2)]);
+    invoiceData['Invoice Details'].push([]);
+    invoiceData['Invoice Details'].push([
+      '',
+      '',
+      'Subtotal:',
+      `${settings.currencySymbol}${subtotal.toFixed(2)}`,
+    ]);
 
-    taxCalculation.taxes.forEach((t) => {
-      data['Invoice Details'].push([
+    taxCalculation.taxes.forEach((tax) => {
+      invoiceData['Invoice Details'].push([
         '',
         '',
-        `${t.name} (${t.rate}%):`,
-        t.amount.toFixed(2)
+        `${tax.name} (${tax.rate}%):`,
+        `${settings.currencySymbol}${tax.amount.toFixed(2)}`,
       ]);
     });
 
-    data['Invoice Details'].push(['', '', 'Total:', total.toFixed(2)]);
+    invoiceData['Invoice Details'].push([
+      '',
+      '',
+      'Total:',
+      `${settings.currencySymbol}${total.toFixed(2)}`,
+    ]);
 
-    const ws = XLSX.utils.aoa_to_sheet(data['Invoice Details']);
+    const ws = XLSX.utils.aoa_to_sheet(invoiceData['Invoice Details']);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Invoice');
 
@@ -1346,13 +1360,12 @@ export function POSBilling() {
       { width: 25 },
       { width: 10 },
       { width: 15 },
-      { width: 15 }
+      { width: 15 },
     ];
 
-    const fileName = `Invoice_${orderDetails.customerName || 'Customer'}_${
-      new Date().toISOString().split('T')[0]
-    }.xlsx`;
-
+    const fileName = `Invoice_${
+      orderDetails.customerName || 'Customer'
+    }_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(wb, fileName);
   };
 
