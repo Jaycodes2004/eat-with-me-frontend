@@ -1014,7 +1014,7 @@ import {
   MessageCircle,
   Users,
   ShoppingBag,
-  Table,
+  Table as TableIcon,
   Download,
   FileSpreadsheet,
 } from 'lucide-react';
@@ -1105,9 +1105,12 @@ export function POSBilling() {
       table.status === 'occupied'
         ? 'Occupied'
         : table.status === 'reserved'
-        ? 'Reserved'
-        : 'Available',
-  }));
+          ? 'Reserved'
+          : 'Available',
+  }
+  ));
+
+
 
   const addToCart = (item: any) => {
     const existing = cart.find((i) => i.id === item.id);
@@ -1193,9 +1196,17 @@ export function POSBilling() {
     }
   };
 
-  const handlePaymentMethodSelect = (method: 'cash' | 'card' | 'upi' | 'split') => {
+  // CHANGED: complete order when payment method chosen
+  const handlePaymentMethodSelect = async (
+    method: 'cash' | 'card' | 'upi' | 'split',
+  ) => {
     setOrderDetails((p) => ({ ...p, paymentMethod: method }));
     setShowPaymentDialog(false);
+
+    // send order to backend + kitchen
+    await handleCompleteOrder();
+
+    // then show invoice options
     setShowInvoiceDialog(true);
   };
 
@@ -1282,15 +1293,7 @@ export function POSBilling() {
       }
     }
 
-    setCart([]);
-    setOrderDetails({
-      type: null,
-      customerName: '',
-      customerPhone: '',
-      paymentMethod: null,
-      referralCode: '',
-    });
-    setShowInvoiceDialog(false);
+    // clear only after invoice dialog is closed (handled there)
   };
 
   const sendWhatsAppInvoice = () => {
@@ -1369,7 +1372,6 @@ export function POSBilling() {
     XLSX.writeFile(wb, fileName);
   };
 
-  /** PDF code unchanged except fixed filename */
   const downloadPDF = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
@@ -1395,7 +1397,7 @@ export function POSBilling() {
     doc.text(
       `Order Type: ${orderDetails.type === 'dine-in' ? 'Dine-In' : 'Takeaway'}`,
       20,
-      y
+      y,
     );
     y += 7;
 
@@ -1407,7 +1409,7 @@ export function POSBilling() {
     doc.text(
       `Customer: ${orderDetails.customerName || 'Walk-in Customer'}`,
       20,
-      y
+      y,
     );
     y += 7;
 
@@ -1419,11 +1421,10 @@ export function POSBilling() {
     doc.text(
       `Payment: ${orderDetails.paymentMethod?.toUpperCase() || 'N/A'}`,
       20,
-      y
+      y,
     );
     y += 15;
 
-    // table header
     doc.setFontSize(10);
     doc.setFillColor(30, 64, 175);
     doc.setTextColor(255, 255, 255);
@@ -1435,7 +1436,6 @@ export function POSBilling() {
     doc.text('Total', 160, y);
 
     y += 10;
-
     doc.setTextColor(0, 0, 0);
 
     cart.forEach((item, index) => {
@@ -1455,14 +1455,13 @@ export function POSBilling() {
       doc.text(
         `${settings.currencySymbol}${(item.price * item.quantity).toFixed(2)}`,
         165,
-        y
+        y,
       );
 
       y += 8;
     });
 
     y += 10;
-
     doc.line(20, y - 5, pageWidth - 20, y - 5);
 
     doc.text('Subtotal:', 130, y);
@@ -1482,7 +1481,7 @@ export function POSBilling() {
     y += 20;
     doc.setFontSize(10);
     doc.text('Thank you for visiting Eat With Me!', pageWidth / 2, y, {
-      align: 'center'
+      align: 'center',
     });
 
     const fileName = `Invoice_${orderDetails.customerName || 'Customer'}_${
@@ -1492,21 +1491,28 @@ export function POSBilling() {
     doc.save(fileName);
   };
 
-  // -------------------------------
-  //        RENDER JSX
-  // -------------------------------
+  const resetAfterInvoice = () => {
+    setCart([]);
+    setOrderDetails({
+      type: null,
+      customerName: '',
+      customerPhone: '',
+      paymentMethod: null,
+      referralCode: '',
+    });
+    setShowInvoiceDialog(false);
+  };
+
   return (
     <div className="flex flex-col lg:flex-row h-full bg-background">
-
       {/* MENU SECTION */}
       <div className="flex-1 p-4 space-y-4">
-
         {orderDetails.type && (
           <Card className="p-4 bg-primary/5 border-primary/20">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {orderDetails.type === 'dine-in' ? (
-                  <Table className="w-5 h-5 text-primary" />
+                  <TableIcon className="w-5 h-5 text-primary" />
                 ) : (
                   <ShoppingBag className="w-5 h-5 text-primary" />
                 )}
@@ -1530,14 +1536,7 @@ export function POSBilling() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setOrderDetails({
-                    type: null,
-                    customerName: '',
-                    customerPhone: '',
-                    paymentMethod: null,
-                    referralCode: ''
-                  });
-                  setCart([]);
+                  resetAfterInvoice();
                 }}
               >
                 New Order
@@ -1641,7 +1640,6 @@ export function POSBilling() {
           </CardHeader>
 
           <CardContent className="flex flex-col h-full">
-
             <ScrollArea className="flex-1 mb-4">
               {cart.length === 0 ? (
                 <div className="text-center text-muted-foreground py-8">
@@ -1718,7 +1716,10 @@ export function POSBilling() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
-                    <span>{settings.currencySymbol}{subtotal.toFixed(2)}</span>
+                    <span>
+                      {settings.currencySymbol}
+                      {subtotal.toFixed(2)}
+                    </span>
                   </div>
 
                   {taxCalculation.taxes.map((tax, idx) => (
@@ -1730,7 +1731,8 @@ export function POSBilling() {
                         {tax.name} ({tax.rate}%)
                       </span>
                       <span>
-                        {settings.currencySymbol}{tax.amount.toFixed(2)}
+                        {settings.currencySymbol}
+                        {tax.amount.toFixed(2)}
                       </span>
                     </div>
                   ))}
@@ -1739,7 +1741,10 @@ export function POSBilling() {
 
                   <div className="flex justify-between font-semibold text-lg text-primary">
                     <span>Total</span>
-                    <span>{settings.currencySymbol}{total.toFixed(2)}</span>
+                    <span>
+                      {settings.currencySymbol}
+                      {total.toFixed(2)}
+                    </span>
                   </div>
                 </div>
 
@@ -1826,7 +1831,7 @@ export function POSBilling() {
               variant="outline"
               onClick={() => handleOrderTypeSelect('dine-in')}
             >
-              <Table size={24} />
+              <TableIcon size={24} />
               <p className="font-medium">Dine-In</p>
             </Button>
 
@@ -1853,13 +1858,11 @@ export function POSBilling() {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-
             {orderDetails.type === 'dine-in' && (
               <div className="space-y-2">
                 <label className="text-sm font-medium">Select Table</label>
 
                 <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto">
-
                   {availableTables.map((table) => (
                     <Button
                       key={table.id}
@@ -1886,7 +1889,6 @@ export function POSBilling() {
                       </div>
                     </Button>
                   ))}
-
                 </div>
               </div>
             )}
@@ -1899,7 +1901,7 @@ export function POSBilling() {
                 onChange={(e) =>
                   setOrderDetails((p) => ({
                     ...p,
-                    customerName: e.target.value
+                    customerName: e.target.value,
                   }))
                 }
               />
@@ -1914,7 +1916,7 @@ export function POSBilling() {
                 onChange={(e) =>
                   setOrderDetails((p) => ({
                     ...p,
-                    customerPhone: e.target.value
+                    customerPhone: e.target.value,
                   }))
                 }
               />
@@ -1930,7 +1932,7 @@ export function POSBilling() {
                     onChange={(e) =>
                       setOrderDetails((p) => ({
                         ...p,
-                        referralCode: e.target.value.toUpperCase()
+                        referralCode: e.target.value.toUpperCase(),
                       }))
                     }
                   />
@@ -1961,6 +1963,16 @@ export function POSBilling() {
         </DialogContent>
       </Dialog>
 
+      {/* PAYMENT DIALOG – just for future extension; now we jump directly via method buttons */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select Payment Method</DialogTitle>
+          </DialogHeader>
+          {/* You can leave this empty or mirror the four method buttons if you still use it */}
+        </DialogContent>
+      </Dialog>
+
       {/* INVOICE POPUP */}
       <Dialog open={showInvoiceDialog} onOpenChange={setShowInvoiceDialog}>
         <DialogContent>
@@ -1975,7 +1987,6 @@ export function POSBilling() {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-
             <div className="bg-green-50 p-4 rounded-lg border border-green-200">
               <p className="text-green-800 font-medium">Payment Successful!</p>
               <p className="text-sm text-green-600">
@@ -1985,9 +1996,8 @@ export function POSBilling() {
 
             <Button
               className="w-full h-12 gap-2"
-              onClick={async () => {
+              onClick={() => {
                 alert('Printing invoice...');
-                await handleCompleteOrder();
               }}
             >
               <Printer size={18} />
@@ -1998,10 +2008,7 @@ export function POSBilling() {
               <Button
                 variant="outline"
                 className="h-12 gap-2 border-green-200 text-green-700 hover:bg-green-50"
-                onClick={async () => {
-                  downloadExcel();
-                  await handleCompleteOrder();
-                }}
+                onClick={downloadExcel}
               >
                 <FileSpreadsheet size={18} />
                 Excel
@@ -2010,10 +2017,7 @@ export function POSBilling() {
               <Button
                 variant="outline"
                 className="h-12 gap-2 border-red-200 text-red-700 hover:bg-red-50"
-                onClick={async () => {
-                  downloadPDF();
-                  await handleCompleteOrder();
-                }}
+                onClick={downloadPDF}
               >
                 <Download size={18} />
                 PDF
@@ -2034,15 +2038,15 @@ export function POSBilling() {
             <Button
               variant="outline"
               className="w-full h-12 gap-2"
-              onClick={handleCompleteOrder}
+              onClick={resetAfterInvoice}
             >
               <FileText size={18} />
               Save & Continue
             </Button>
-
           </div>
         </DialogContent>
       </Dialog>
     </div>
+    
   );
-}
+};
