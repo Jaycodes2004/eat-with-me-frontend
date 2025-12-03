@@ -1236,7 +1236,9 @@ export function POSBilling() {
 			})),
 		};
 
+		console.log('POSBilling creating order with payload:', payload);
 		const createdOrder = await createOrder(payload);
+		console.log('Order created:', createdOrder);
 
 		// force initial status as 'pending' for kitchen
 		addOrder({
@@ -1506,6 +1508,7 @@ export function POSBilling() {
 		});
 		setShowInvoiceDialog(false);
 	};
+
 	return (
 		<div className='flex flex-col lg:flex-row h-full bg-background'>
 			{/* MENU SECTION */}
