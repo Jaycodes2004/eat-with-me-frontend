@@ -1211,8 +1211,24 @@ export function POSBilling() {
 		setShowInvoiceDialog(true);
 	};
 
-	const handleCompleteOrder = async () => {
+	// payment selection: send to backend, then show invoice
+	const handlePaymentMethodSelect = async (
+		method: 'cash' | 'card' | 'upi' | 'split'
+	) => {
+		setOrderDetails((p) => ({ ...p, paymentMethod: method }));
+		setShowPaymentDialog(false);
+		await handleCompleteOrder(method);
+		setShowInvoiceDialog(true);
+	};
+
+	const handleCompleteOrder = async (
+		method: 'cash' | 'card' | 'upi' | 'split'
+	) => {
 		if (!orderDetails.type || cart.length === 0) return;
+
+		const finalPaymentMethod = (method ||
+			orderDetails.paymentMethod ||
+			'cash') as 'cash' | 'card' | 'upi' | 'split';
 
 		const payload: CreateOrderPayload = {
 			tableNumber:
@@ -1222,11 +1238,8 @@ export function POSBilling() {
 			orderSource: orderDetails.type,
 			customerName: orderDetails.customerName || undefined,
 			customerPhone: orderDetails.customerPhone || undefined,
-			paymentMethod: (orderDetails.paymentMethod || 'cash') as
-				| 'cash'
-				| 'card'
-				| 'upi'
-				| 'split',
+			paymentMethod: finalPaymentMethod,
+			status: 'pending', // send pending to backend
 			items: cart.map((i) => ({
 				id: i.id,
 				name: i.name,
@@ -1240,7 +1253,7 @@ export function POSBilling() {
 		const createdOrder = await createOrder(payload);
 		console.log('Order created:', createdOrder);
 
-		// force initial status as 'pending' for kitchen
+		// make sure UI sees it as pending
 		addOrder({
 			...createdOrder,
 			status: 'pending',
