@@ -1211,7 +1211,6 @@ export function POSBilling() {
 		setShowInvoiceDialog(true);
 	};
 
-	// payment selection: send to backend, then show invoice
 	const handlePaymentMethodSelect = async (
 		method: 'cash' | 'card' | 'upi' | 'split'
 	) => {
@@ -1239,7 +1238,7 @@ export function POSBilling() {
 			customerName: orderDetails.customerName || undefined,
 			customerPhone: orderDetails.customerPhone || undefined,
 			paymentMethod: finalPaymentMethod,
-			status: 'pending', // send pending to backend
+			status: 'pending',
 			items: cart.map((i) => ({
 				id: i.id,
 				name: i.name,
@@ -1253,7 +1252,6 @@ export function POSBilling() {
 		const createdOrder = await createOrder(payload);
 		console.log('Order created:', createdOrder);
 
-		// make sure UI sees it as pending
 		addOrder({
 			...createdOrder,
 			status: 'pending',
@@ -1771,40 +1769,37 @@ export function POSBilling() {
 									</div>
 								)}
 
-								{/* PAYMENT METHOD BUTTONS */}
-								<div className='grid grid-cols-2 gap-2'>
-									<Button
-										variant='outline'
-										className='h-12 flex-col gap-1 border-green-200 text-green-700 hover:bg-green-50'
-										onClick={() => handlePaymentMethodSelect('cash')}>
-										<Banknote size={18} />
-										<span className='text-xs'>Cash</span>
-									</Button>
+								<Button
+									variant='outline'
+									className='h-12 flex-col gap-1 border-green-200 text-green-700 hover:bg-green-50'
+									onClick={() => handlePaymentMethodSelect('cash')}>
+									<Banknote size={18} />
+									<span className='text-xs'>Cash</span>
+								</Button>
 
-									<Button
-										variant='outline'
-										className='h-12 flex-col gap-1 border-blue-200 text-blue-700 hover:bg-blue-50'
-										onClick={() => handlePaymentMethodSelect('card')}>
-										<CreditCard size={18} />
-										<span className='text-xs'>Card</span>
-									</Button>
+								<Button
+									variant='outline'
+									className='h-12 flex-col gap-1 border-blue-200 text-blue-700 hover:bg-blue-50'
+									onClick={() => handlePaymentMethodSelect('card')}>
+									<CreditCard size={18} />
+									<span className='text-xs'>Card</span>
+								</Button>
 
-									<Button
-										variant='outline'
-										className='h-12 flex-col gap-1 border-purple-200 text-purple-700 hover:bg-purple-50'
-										onClick={() => handlePaymentMethodSelect('upi')}>
-										<Smartphone size={18} />
-										<span className='text-xs'>UPI</span>
-									</Button>
+								<Button
+									variant='outline'
+									className='h-12 flex-col gap-1 border-purple-200 text-purple-700 hover:bg-purple-50'
+									onClick={() => handlePaymentMethodSelect('upi')}>
+									<Smartphone size={18} />
+									<span className='text-xs'>UPI</span>
+								</Button>
 
-									<Button
-										variant='outline'
-										className='h-12 flex-col gap-1 border-orange-200 text-orange-700 hover:bg-orange-50'
-										onClick={() => handlePaymentMethodSelect('split')}>
-										<FileText size={18} />
-										<span className='text-xs'>Split</span>
-									</Button>
-								</div>
+								<Button
+									variant='outline'
+									className='h-12 flex-col gap-1 border-orange-200 text-orange-700 hover:bg-orange-50'
+									onClick={() => handlePaymentMethodSelect('split')}>
+									<FileText size={18} />
+									<span className='text-xs'>Split</span>
+								</Button>
 
 								<Button
 									className='w-full h-12 bg-primary hover:bg-primary/90'
