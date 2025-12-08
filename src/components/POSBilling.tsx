@@ -986,6 +986,1072 @@
 //   );
 // }
 
+// import { useState, useEffect } from 'react';
+// import type { MouseEvent } from 'react';
+// import { useAppContext } from '../contexts/AppContext';
+// import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+// import { Button } from './ui/button';
+// import { Badge } from './ui/badge';
+// import { Separator } from './ui/separator';
+// import { ScrollArea } from './ui/scroll-area';
+// import { Input } from './ui/input';
+// import {
+// 	Dialog,
+// 	DialogContent,
+// 	DialogDescription,
+// 	DialogHeader,
+// 	DialogTitle,
+// } from './ui/dialog';
+// import {
+// 	Plus,
+// 	Minus,
+// 	ShoppingCart,
+// 	CreditCard,
+// 	Banknote,
+// 	Smartphone,
+// 	Printer,
+// 	FileText,
+// 	Trash2,
+// 	MessageCircle,
+// 	Users,
+// 	ShoppingBag,
+// 	Table as TableIcon,
+// 	Download,
+// 	FileSpreadsheet,
+// } from 'lucide-react';
+
+// import * as XLSX from 'xlsx';
+// import jsPDF from 'jspdf';
+// import { createOrder, type CreateOrderPayload } from '../api/orders';
+
+// interface CartItem {
+// 	id: string;
+// 	name: string;
+// 	price: number;
+// 	quantity: number;
+// 	category: string;
+// }
+
+// interface OrderDetails {
+// 	type: 'dine-in' | 'takeaway' | null;
+// 	tableNumber?: string;
+// 	customerName: string;
+// 	customerPhone: string;
+// 	paymentMethod: 'cash' | 'card' | 'upi' | 'split' | null;
+// 	referralCode?: string;
+// }
+
+// export function POSBilling() {
+// 	const {
+// 		tables,
+// 		menuItems: contextMenuItems,
+// 		settings,
+// 		calculateTaxes,
+// 		updateTable,
+// 		getTableById,
+// 		addOrder,
+// 		addCustomer,
+// 		customers,
+// 		awardLoyaltyPoints,
+// 		calculateLoyaltyTier,
+// 		generateReferralCode,
+// 		handleReferral,
+// 		addNotification,
+// 	} = useAppContext();
+
+// 	const [selectedCategory, setSelectedCategory] = useState('');
+// 	const [cart, setCart] = useState<CartItem[]>([]);
+// 	const [showOrderTypeDialog, setShowOrderTypeDialog] = useState(false);
+// 	const [showCustomerDetailsDialog, setShowCustomerDetailsDialog] =
+// 		useState(false);
+// 	const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+// 	const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
+
+// 	const [orderDetails, setOrderDetails] = useState<OrderDetails>({
+// 		type: null,
+// 		customerName: '',
+// 		customerPhone: '',
+// 		paymentMethod: null,
+// 		referralCode: '',
+// 	});
+
+// 	const categories = [
+// 		...new Set(contextMenuItems.map((item) => item.category)),
+// 	];
+
+// 	useEffect(() => {
+// 		if (
+// 			categories.length > 0 &&
+// 			(!selectedCategory || !categories.includes(selectedCategory))
+// 		) {
+// 			setSelectedCategory(categories[0]);
+// 		}
+// 	}, [categories, selectedCategory]);
+
+// 	const menuItems = contextMenuItems;
+// 	const filteredItems = menuItems.filter(
+// 		(item) => item.category === selectedCategory && item.available
+// 	);
+
+// 	const availableTables = tables.map((table) => ({
+// 		id: table.id,
+// 		name: `Table ${table.number}`,
+// 		number: table.number,
+// 		isOccupied: table.status !== 'free',
+// 		status: table.status,
+// 		capacity: table.capacity,
+// 		customer: table.customer,
+// 		waiter: table.waiter,
+// 		statusDisplay:
+// 			table.status === 'occupied'
+// 				? 'Occupied'
+// 				: table.status === 'reserved'
+// 				? 'Reserved'
+// 				: 'Available',
+// 	}));
+
+// 	const addToCart = (item: any) => {
+// 		const existing = cart.find((i) => i.id === item.id);
+// 		if (existing) {
+// 			setCart(
+// 				cart.map((i) =>
+// 					i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+// 				)
+// 			);
+// 		} else {
+// 			setCart([...cart, { ...item, quantity: 1 }]);
+// 		}
+// 	};
+
+// 	const updateQuantity = (id: string, inc: boolean) => {
+// 		setCart(
+// 			cart
+// 				.map((item) =>
+// 					item.id === id
+// 						? {
+// 								...item,
+// 								quantity: inc ? item.quantity + 1 : item.quantity - 1,
+// 						  }
+// 						: item
+// 				)
+// 				.filter((item) => item.quantity > 0)
+// 		);
+// 	};
+
+// 	const removeFromCart = (id: string) => {
+// 		setCart(cart.filter((i) => i.id !== id));
+// 	};
+
+// 	const subtotal = cart.reduce(
+// 		(sum, item) => sum + item.price * item.quantity,
+// 		0
+// 	);
+
+// 	const taxCalculation = cart.reduce(
+// 		(acc, item) => {
+// 			const menuItem = contextMenuItems.find((mi) => mi.id === item.id);
+// 			const itemTotal = item.price * item.quantity;
+// 			const itemTaxCategory =
+// 				menuItem?.taxCategory || settings.defaultTaxCategory;
+
+// 			const { taxes, totalTax } = calculateTaxes(itemTotal, itemTaxCategory);
+
+// 			acc.totalTax += totalTax;
+// 			taxes.forEach((tax) => {
+// 				const existing = acc.taxes.find((t) => t.name === tax.name);
+// 				if (existing) existing.amount += tax.amount;
+// 				else acc.taxes.push({ ...tax });
+// 			});
+
+// 			return acc;
+// 		},
+// 		{
+// 			taxes: [] as Array<{ name: string; rate: number; amount: number }>,
+// 			totalTax: 0,
+// 		}
+// 	);
+
+// 	const total = subtotal + taxCalculation.totalTax;
+
+// 	const startNewOrder = () => {
+// 		if (cart.length === 0) setShowOrderTypeDialog(true);
+// 		else setShowCustomerDetailsDialog(true);
+// 	};
+
+// 	const handleOrderTypeSelect = (type: 'dine-in' | 'takeaway') => {
+// 		setOrderDetails((p) => ({ ...p, type }));
+// 		setShowOrderTypeDialog(false);
+// 		setShowCustomerDetailsDialog(true);
+// 	};
+
+// 	const handleTableSelect = async (tableId: string) => {
+// 		const table = getTableById(tableId);
+// 		if (!table) return;
+
+// 		setOrderDetails((p) => ({
+// 			...p,
+// 			tableNumber: `Table ${table.number}`,
+// 		}));
+
+// 		if (table.status === 'free') {
+// 			await updateTable(tableId, {
+// 				status: 'occupied',
+// 				lastOrderAt: new Date().toISOString(),
+// 			});
+// 		}
+// 	};
+
+// 	// payment selection: send to backend, then show invoice
+// 	const handlePaymentMethodSelect = async (
+// 		method: 'cash' | 'card' | 'upi' | 'split'
+// 	) => {
+// 		setOrderDetails((p) => ({ ...p, paymentMethod: method }));
+// 		setShowPaymentDialog(false);
+// 		await handleCompleteOrder();
+// 		setShowInvoiceDialog(true);
+// 	};
+
+// 	const handleCompleteOrder = async () => {
+// 		if (!orderDetails.type || cart.length === 0) return;
+
+// 		const payload: CreateOrderPayload = {
+// 			tableNumber:
+// 				orderDetails.type === 'dine-in' && orderDetails.tableNumber
+// 					? parseInt(orderDetails.tableNumber.replace('Table ', ''))
+// 					: undefined,
+// 			orderSource: orderDetails.type,
+// 			customerName: orderDetails.customerName || undefined,
+// 			customerPhone: orderDetails.customerPhone || undefined,
+// 			paymentMethod: (orderDetails.paymentMethod || 'cash') as
+// 				| 'cash'
+// 				| 'card'
+// 				| 'upi'
+// 				| 'split',
+// 			status: 'pending',
+// 			items: cart.map((i) => ({
+// 				id: i.id,
+// 				name: i.name,
+// 				quantity: i.quantity,
+// 				price: i.price,
+// 				category: i.category,
+// 			})),
+// 		};
+
+// 		console.log('POSBilling creating order with payload:', payload);
+// 		const createdOrder = await createOrder(payload);
+// 		console.log('Order created:', createdOrder);
+
+// 		// make sure UI sees it as pending
+// 		addOrder({
+// 			...createdOrder,
+// 			status: 'pending',
+// 		});
+
+// 		const effectiveTotal = createdOrder.totalAmount ?? total;
+
+// 		if (orderDetails.customerPhone && orderDetails.customerName) {
+// 			const existing = customers.find(
+// 				(c) => c.phone === orderDetails.customerPhone
+// 			);
+
+// 			if (existing) {
+// 				const points = awardLoyaltyPoints(existing.id, effectiveTotal);
+// 				addNotification({
+// 					title: 'Loyalty Points Earned!',
+// 					message: `${existing.name} earned ${points} points`,
+// 					type: 'success',
+// 				});
+// 			} else {
+// 				const newId = `CUST${Date.now()}`;
+// 				const referralCode = generateReferralCode(newId);
+// 				const tier = calculateLoyaltyTier(effectiveTotal);
+
+// 				addCustomer({
+// 					id: newId,
+// 					name: orderDetails.customerName,
+// 					phone: orderDetails.customerPhone,
+// 					email: '',
+// 					joinDate: new Date().toISOString().split('T')[0],
+// 					totalOrders: 1,
+// 					totalSpent: effectiveTotal,
+// 					loyaltyPoints: Math.floor(effectiveTotal),
+// 					loyaltyTier: tier,
+// 					lastVisit: new Date().toISOString().split('T')[0],
+// 					averageRating: 0,
+// 					tags: ['New Customer'],
+// 					status: 'active',
+// 					referralCode,
+// 					referralCount: 0,
+// 				});
+
+// 				if (orderDetails.referralCode) {
+// 					handleReferral(newId, orderDetails.referralCode);
+// 				}
+// 			}
+// 		}
+
+// 		if (orderDetails.type === 'dine-in' && orderDetails.tableNumber) {
+// 			const tableNumber = parseInt(
+// 				orderDetails.tableNumber.replace('Table ', '')
+// 			);
+// 			const table = tables.find((t) => t.number === tableNumber);
+// 			if (table) {
+// 				await updateTable(table.id, {
+// 					status: 'occupied',
+// 					currentOrderId: createdOrder.id,
+// 					lastOrderAt: new Date().toISOString(),
+// 				});
+// 			}
+// 		}
+// 	};
+
+// 	const sendWhatsAppInvoice = () => {
+// 		const message = `Hi ${orderDetails.customerName}, your order total is ${
+// 			settings.currencySymbol
+// 		}${total.toFixed(2)}. Thank you for visiting us!`;
+// 		const whatsappUrl = `https://wa.me/91${
+// 			orderDetails.customerPhone
+// 		}?text=${encodeURIComponent(message)}`;
+// 		window.open(whatsappUrl, '_blank');
+// 	};
+
+// 	const downloadExcel = () => {
+// 		const invoiceData: Record<string, any[][]> = {
+// 			'Invoice Details': [
+// 				['Restaurant Name', 'Eat With Me'],
+// 				[
+// 					'Order Type',
+// 					orderDetails.type === 'dine-in' ? 'Dine-In' : 'Takeaway',
+// 				],
+// 				['Table Number', orderDetails.tableNumber || 'N/A'],
+// 				['Customer Name', orderDetails.customerName || 'Walk-in Customer'],
+// 				['Customer Phone', orderDetails.customerPhone || 'N/A'],
+// 				['Payment Method', orderDetails.paymentMethod?.toUpperCase() || 'N/A'],
+// 				['Date & Time', new Date().toLocaleString()],
+// 				['Invoice #', `INV-${Date.now()}`],
+// 				[],
+// 				['Item Name', 'Quantity', 'Unit Price', 'Total Price'],
+// 			],
+// 		};
+
+// 		cart.forEach((item) => {
+// 			invoiceData['Invoice Details'].push([
+// 				item.name,
+// 				item.quantity.toString(),
+// 				`${settings.currencySymbol}${item.price.toFixed(2)}`,
+// 				`${settings.currencySymbol}${(item.price * item.quantity).toFixed(2)}`,
+// 			]);
+// 		});
+
+// 		invoiceData['Invoice Details'].push([]);
+// 		invoiceData['Invoice Details'].push([
+// 			'',
+// 			'',
+// 			'Subtotal:',
+// 			`${settings.currencySymbol}${subtotal.toFixed(2)}`,
+// 		]);
+
+// 		taxCalculation.taxes.forEach((tax) => {
+// 			invoiceData['Invoice Details'].push([
+// 				'',
+// 				'',
+// 				`${tax.name} (${tax.rate}%):`,
+// 				`${settings.currencySymbol}${tax.amount.toFixed(2)}`,
+// 			]);
+// 		});
+
+// 		invoiceData['Invoice Details'].push([
+// 			'',
+// 			'',
+// 			'Total:',
+// 			`${settings.currencySymbol}${total.toFixed(2)}`,
+// 		]);
+
+// 		const ws = XLSX.utils.aoa_to_sheet(invoiceData['Invoice Details']);
+// 		const wb = XLSX.utils.book_new();
+// 		XLSX.utils.book_append_sheet(wb, ws, 'Invoice');
+
+// 		ws['!cols'] = [{ width: 25 }, { width: 10 }, { width: 15 }, { width: 15 }];
+
+// 		const fileName = `Invoice_${orderDetails.customerName || 'Customer'}_${
+// 			new Date().toISOString().split('T')[0]
+// 		}.xlsx`;
+// 		XLSX.writeFile(wb, fileName);
+// 	};
+
+// 	const downloadPDF = () => {
+// 		const doc = new jsPDF();
+// 		const pageWidth = doc.internal.pageSize.width;
+// 		let y = 20;
+
+// 		doc.setFontSize(20);
+// 		doc.setTextColor(30, 64, 175);
+// 		doc.text('Eat With Me', pageWidth / 2, y, { align: 'center' });
+// 		y += 10;
+
+// 		doc.setFontSize(16);
+// 		doc.text('Invoice', pageWidth / 2, y, { align: 'center' });
+// 		y += 20;
+
+// 		doc.setFontSize(12);
+// 		doc.setTextColor(0, 0, 0);
+
+// 		doc.text(`Invoice #: INV-${Date.now()}`, 20, y);
+// 		y += 7;
+// 		doc.text(`Date & Time: ${new Date().toLocaleString()}`, 20, y);
+// 		y += 7;
+
+// 		doc.text(
+// 			`Order Type: ${orderDetails.type === 'dine-in' ? 'Dine-In' : 'Takeaway'}`,
+// 			20,
+// 			y
+// 		);
+// 		y += 7;
+
+// 		if (orderDetails.tableNumber) {
+// 			doc.text(`Table: ${orderDetails.tableNumber}`, 20, y);
+// 			y += 7;
+// 		}
+
+// 		doc.text(
+// 			`Customer: ${orderDetails.customerName || 'Walk-in Customer'}`,
+// 			20,
+// 			y
+// 		);
+// 		y += 7;
+
+// 		if (orderDetails.customerPhone) {
+// 			doc.text(`Phone: ${orderDetails.customerPhone}`, 20, y);
+// 			y += 7;
+// 		}
+
+// 		doc.text(
+// 			`Payment: ${orderDetails.paymentMethod?.toUpperCase() || 'N/A'}`,
+// 			20,
+// 			y
+// 		);
+// 		y += 15;
+
+// 		doc.setFontSize(10);
+// 		doc.setFillColor(30, 64, 175);
+// 		doc.setTextColor(255, 255, 255);
+// 		doc.rect(20, y - 5, pageWidth - 40, 10, 'F');
+
+// 		doc.text('Item', 25, y);
+// 		doc.text('Qty', 100, y);
+// 		doc.text('Price', 130, y);
+// 		doc.text('Total', 160, y);
+
+// 		y += 10;
+// 		doc.setTextColor(0, 0, 0);
+
+// 		cart.forEach((item, index) => {
+// 			if (y > 250) {
+// 				doc.addPage();
+// 				y = 20;
+// 			}
+
+// 			if (index % 2 === 0) {
+// 				doc.setFillColor(248, 250, 252);
+// 				doc.rect(20, y - 5, pageWidth - 40, 10, 'F');
+// 			}
+
+// 			doc.text(item.name.substring(0, 25), 25, y);
+// 			doc.text(item.quantity.toString(), 105, y);
+// 			doc.text(`${settings.currencySymbol}${item.price.toFixed(2)}`, 135, y);
+// 			doc.text(
+// 				`${settings.currencySymbol}${(item.price * item.quantity).toFixed(2)}`,
+// 				165,
+// 				y
+// 			);
+
+// 			y += 8;
+// 		});
+
+// 		y += 10;
+// 		doc.line(20, y - 5, pageWidth - 20, y - 5);
+
+// 		doc.text('Subtotal:', 130, y);
+// 		doc.text(subtotal.toFixed(2), 165, y);
+// 		y += 7;
+
+// 		taxCalculation.taxes.forEach((t) => {
+// 			doc.text(`${t.name} (${t.rate}%):`, 130, y);
+// 			doc.text(t.amount.toFixed(2), 165, y);
+// 			y += 7;
+// 		});
+
+// 		doc.setFontSize(12);
+// 		doc.text('Total:', 130, y);
+// 		doc.text(total.toFixed(2), 165, y);
+
+// 		y += 20;
+// 		doc.setFontSize(10);
+// 		doc.text('Thank you for visiting Eat With Me!', pageWidth / 2, y, {
+// 			align: 'center',
+// 		});
+
+// 		const fileName = `Invoice_${orderDetails.customerName || 'Customer'}_${
+// 			new Date().toISOString().split('T')[0]
+// 		}.pdf`;
+
+// 		doc.save(fileName);
+// 	};
+
+// 	const resetAfterInvoice = () => {
+// 		setCart([]);
+// 		setOrderDetails({
+// 			type: null,
+// 			customerName: '',
+// 			customerPhone: '',
+// 			paymentMethod: null,
+// 			referralCode: '',
+// 		});
+// 		setShowInvoiceDialog(false);
+// 	};
+
+// 	return (
+// 		<div className='flex flex-col lg:flex-row h-full bg-background'>
+// 			{/* MENU SECTION */}
+// 			<div className='flex-1 p-4 space-y-4'>
+// 				{orderDetails.type && (
+// 					<Card className='p-4 bg-primary/5 border-primary/20'>
+// 						<div className='flex items-center justify-between'>
+// 							<div className='flex items-center gap-3'>
+// 								{orderDetails.type === 'dine-in' ? (
+// 									<TableIcon className='w-5 h-5 text-primary' />
+// 								) : (
+// 									<ShoppingBag className='w-5 h-5 text-primary' />
+// 								)}
+
+// 								<div>
+// 									<p className='font-medium'>
+// 										{orderDetails.type === 'dine-in'
+// 											? 'Dine-In Order'
+// 											: 'Takeaway Order'}
+// 									</p>
+// 									<p className='text-sm text-muted-foreground'>
+// 										{orderDetails.tableNumber &&
+// 											`Table: ${orderDetails.tableNumber}`}
+// 										{orderDetails.customerName &&
+// 											` • Customer: ${orderDetails.customerName}`}
+// 									</p>
+// 								</div>
+// 							</div>
+
+// 							<Button
+// 								variant='outline'
+// 								size='sm'
+// 								onClick={() => {
+// 									resetAfterInvoice();
+// 								}}>
+// 								New Order
+// 							</Button>
+// 						</div>
+// 					</Card>
+// 				)}
+
+// 				{/* CATEGORY BUTTONS */}
+// 				<ScrollArea className='w-full'>
+// 					<div className='flex gap-2 pb-2'>
+// 						{categories.map((cat) => (
+// 							<Button
+// 								key={cat}
+// 								variant={selectedCategory === cat ? 'default' : 'outline'}
+// 								className={`whitespace-nowrap ${
+// 									selectedCategory === cat
+// 										? 'bg-primary text-primary-foreground'
+// 										: 'border-primary text-primary hover:bg-primary/10'
+// 								}`}
+// 								onClick={() => setSelectedCategory(cat)}>
+// 								{cat}
+// 							</Button>
+// 						))}
+// 					</div>
+// 				</ScrollArea>
+
+// 				{/* MENU GRID */}
+// 				<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'>
+// 					{filteredItems.map((item) => (
+// 						<Card
+// 							key={item.id}
+// 							className={`border-0 shadow-md hover:shadow-lg transition-all ${
+// 								!item.available
+// 									? 'opacity-50'
+// 									: 'cursor-pointer hover:scale-105'
+// 							}`}
+// 							onClick={() => {
+// 								if (!item.available) return;
+// 								if (!orderDetails.type) {
+// 									setShowOrderTypeDialog(true);
+// 								} else {
+// 									addToCart(item);
+// 								}
+// 							}}>
+// 							<CardContent className='p-4'>
+// 								<div className='flex justify-between items-start mb-2'>
+// 									<h4 className='font-medium text-primary line-clamp-2'>
+// 										{item.name}
+// 									</h4>
+
+// 									{!item.available && (
+// 										<Badge
+// 											variant='destructive'
+// 											className='text-xs'>
+// 											Out of Stock
+// 										</Badge>
+// 									)}
+// 								</div>
+
+// 								<div className='flex items-center justify-between'>
+// 									<div className='flex items-center gap-1'>
+// 										<span className='text-primary'>
+// 											{settings.currencySymbol}
+// 										</span>
+// 										<span className='text-lg font-semibold text-primary'>
+// 											{item.price}
+// 										</span>
+// 									</div>
+
+// 									<Button
+// 										size='sm'
+// 										className='w-8 h-8 rounded-full p-0 bg-primary hover:bg-primary/90'
+// 										disabled={!item.available}
+// 										onClick={(e: MouseEvent<HTMLButtonElement>) => {
+// 											e.stopPropagation();
+// 											if (!orderDetails.type) {
+// 												setShowOrderTypeDialog(true);
+// 											} else {
+// 												addToCart(item);
+// 											}
+// 										}}>
+// 										<Plus size={16} />
+// 									</Button>
+// 								</div>
+// 							</CardContent>
+// 						</Card>
+// 					))}
+// 				</div>
+// 			</div>
+
+// 			{/* CART SECTION */}
+// 			<div className='w-full lg:w-96 bg-card border-l border-border p-4'>
+// 				<Card className='h-full border-0 shadow-lg'>
+// 					<CardHeader>
+// 						<CardTitle className='flex items-center gap-2 text-primary'>
+// 							<ShoppingCart size={20} />
+// 							Order Summary
+// 						</CardTitle>
+// 					</CardHeader>
+
+// 					<CardContent className='flex flex-col h-full'>
+// 						<ScrollArea className='flex-1 mb-4'>
+// 							{cart.length === 0 ? (
+// 								<div className='text-center text-muted-foreground py-8'>
+// 									<ShoppingCart
+// 										size={48}
+// 										className='mx-auto mb-4 opacity-50'
+// 									/>
+// 									<p>No items in cart</p>
+// 									<Button
+// 										className='mt-4'
+// 										onClick={startNewOrder}>
+// 										Start New Order
+// 									</Button>
+// 								</div>
+// 							) : (
+// 								<div className='space-y-3'>
+// 									{cart.map((item) => (
+// 										<div
+// 											key={item.id}
+// 											className='flex items-center justify-between p-3 bg-muted/50 rounded-lg'>
+// 											<div className='flex-1 min-w-0'>
+// 												<h5 className='font-medium truncate'>{item.name}</h5>
+
+// 												<div className='flex items-center gap-1 text-sm text-muted-foreground'>
+// 													<span className='text-primary'>
+// 														{settings.currencySymbol}
+// 													</span>
+// 													<span>
+// 														{item.price} × {item.quantity}
+// 													</span>
+// 												</div>
+// 											</div>
+
+// 											<div className='flex items-center gap-2 ml-2'>
+// 												<Button
+// 													size='sm'
+// 													variant='outline'
+// 													className='w-8 h-8 p-0'
+// 													onClick={() => updateQuantity(item.id, false)}>
+// 													<Minus size={12} />
+// 												</Button>
+
+// 												<span className='w-8 text-center font-medium'>
+// 													{item.quantity}
+// 												</span>
+
+// 												<Button
+// 													size='sm'
+// 													variant='outline'
+// 													className='w-8 h-8 p-0'
+// 													onClick={() => updateQuantity(item.id, true)}>
+// 													<Plus size={12} />
+// 												</Button>
+
+// 												<Button
+// 													size='sm'
+// 													variant='destructive'
+// 													className='w-8 h-8 p-0 ml-1'
+// 													onClick={() => removeFromCart(item.id)}>
+// 													<Trash2 size={12} />
+// 												</Button>
+// 											</div>
+// 										</div>
+// 									))}
+// 								</div>
+// 							)}
+// 						</ScrollArea>
+
+// 						{/* TOTALS */}
+// 						{cart.length > 0 && (
+// 							<div className='space-y-4 border-t border-border pt-4'>
+// 								<div className='space-y-2'>
+// 									<div className='flex justify-between'>
+// 										<span>Subtotal</span>
+// 										<span>
+// 											{settings.currencySymbol}
+// 											{subtotal.toFixed(2)}
+// 										</span>
+// 									</div>
+
+// 									{taxCalculation.taxes.map((tax, idx) => (
+// 										<div
+// 											key={idx}
+// 											className='flex justify-between text-sm text-muted-foreground'>
+// 											<span>
+// 												{tax.name} ({tax.rate}%)
+// 											</span>
+// 											<span>
+// 												{settings.currencySymbol}
+// 												{tax.amount.toFixed(2)}
+// 											</span>
+// 										</div>
+// 									))}
+
+// 									<Separator />
+
+// 									<div className='flex justify-between font-semibold text-lg text-primary'>
+// 										<span>Total</span>
+// 										<span>
+// 											{settings.currencySymbol}
+// 											{total.toFixed(2)}
+// 										</span>
+// 									</div>
+// 								</div>
+
+// 								{orderDetails.customerName && (
+// 									<div className='bg-muted/50 p-2 rounded text-sm'>
+// 										<p className='font-medium'>{orderDetails.customerName}</p>
+// 										<p className='text-muted-foreground'>
+// 											{orderDetails.customerPhone}
+// 										</p>
+// 									</div>
+// 								)}
+
+// 								<Button
+// 									variant='outline'
+// 									className='h-12 flex-col gap-1 border-green-200 text-green-700 hover:bg-green-50'
+// 									onClick={() => handlePaymentMethodSelect('cash')}>
+// 									<Banknote size={18} />
+// 									<span className='text-xs'>Cash</span>
+// 								</Button>
+
+// 								<Button
+// 									variant='outline'
+// 									className='h-12 flex-col gap-1 border-blue-200 text-blue-700 hover:bg-blue-50'
+// 									onClick={() => handlePaymentMethodSelect('card')}>
+// 									<CreditCard size={18} />
+// 									<span className='text-xs'>Card</span>
+// 								</Button>
+
+// 								<Button
+// 									variant='outline'
+// 									className='h-12 flex-col gap-1 border-purple-200 text-purple-700 hover:bg-purple-50'
+// 									onClick={() => handlePaymentMethodSelect('upi')}>
+// 									<Smartphone size={18} />
+// 									<span className='text-xs'>UPI</span>
+// 								</Button>
+
+// 								<Button
+// 									variant='outline'
+// 									className='h-12 flex-col gap-1 border-orange-200 text-orange-700 hover:bg-orange-50'
+// 									onClick={() => handlePaymentMethodSelect('split')}>
+// 									<FileText size={18} />
+// 									<span className='text-xs'>Split</span>
+// 								</Button>
+
+// 								<Button
+// 									className='w-full h-12 bg-primary hover:bg-primary/90'
+// 									onClick={() => {
+// 										if (!orderDetails.customerName) {
+// 											setShowCustomerDetailsDialog(true);
+// 										} else {
+// 											setShowPaymentDialog(true);
+// 										}
+// 									}}>
+// 									<Users
+// 										className='mr-2'
+// 										size={18}
+// 									/>
+// 									Proceed to Checkout
+// 								</Button>
+// 							</div>
+// 						)}
+// 					</CardContent>
+// 				</Card>
+// 			</div>
+
+// 			{/* ORDER TYPE POPUP */}
+// 			<Dialog
+// 				open={showOrderTypeDialog}
+// 				onOpenChange={setShowOrderTypeDialog}>
+// 				<DialogContent>
+// 					<DialogHeader>
+// 						<DialogTitle>Select Order Type</DialogTitle>
+// 						<DialogDescription>
+// 							Choose whether this is a dine-in or takeaway order.
+// 						</DialogDescription>
+// 					</DialogHeader>
+
+// 					<div className='grid gap-4 py-4'>
+// 						<Button
+// 							className='h-20 flex-col gap-2'
+// 							variant='outline'
+// 							onClick={() => handleOrderTypeSelect('dine-in')}>
+// 							<TableIcon size={24} />
+// 							<p className='font-medium'>Dine-In</p>
+// 						</Button>
+
+// 						<Button
+// 							className='h-20 flex-col gap-2'
+// 							variant='outline'
+// 							onClick={() => handleOrderTypeSelect('takeaway')}>
+// 							<ShoppingBag size={24} />
+// 							<p className='font-medium'>Takeaway</p>
+// 						</Button>
+// 					</div>
+// 				</DialogContent>
+// 			</Dialog>
+
+// 			{/* CUSTOMER DETAILS POPUP */}
+// 			<Dialog
+// 				open={showCustomerDetailsDialog}
+// 				onOpenChange={setShowCustomerDetailsDialog}>
+// 				<DialogContent>
+// 					<DialogHeader>
+// 						<DialogTitle>Customer Details</DialogTitle>
+// 					</DialogHeader>
+
+// 					<div className='space-y-4 py-4'>
+// 						{orderDetails.type === 'dine-in' && (
+// 							<div className='space-y-2'>
+// 								<label className='text-sm font-medium'>Select Table</label>
+
+// 								<div className='grid grid-cols-3 gap-2 max-h-40 overflow-y-auto'>
+// 									{availableTables.map((table) => (
+// 										<Button
+// 											key={table.id}
+// 											variant={
+// 												orderDetails.tableNumber === `Table ${table.number}`
+// 													? 'default'
+// 													: 'outline'
+// 											}
+// 											disabled={table.isOccupied}
+// 											onClick={() => handleTableSelect(table.id)}
+// 											className={`h-12 text-xs ${
+// 												table.status === 'occupied'
+// 													? 'border-red-300 text-red-700'
+// 													: table.status === 'reserved'
+// 													? 'border-yellow-300 text-yellow-700'
+// 													: 'border-green-300 text-green-700'
+// 											}`}>
+// 											<div className='flex flex-col items-center'>
+// 												<span>{table.name}</span>
+// 												<span className='text-[10px] opacity-75'>
+// 													{table.statusDisplay}
+// 												</span>
+// 											</div>
+// 										</Button>
+// 									))}
+// 								</div>
+// 							</div>
+// 						)}
+
+// 						<div className='space-y-2'>
+// 							<label className='text-sm font-medium'>
+// 								Customer Name (Optional)
+// 							</label>
+// 							<Input
+// 								placeholder='Enter name'
+// 								value={orderDetails.customerName}
+// 								onChange={(e) =>
+// 									setOrderDetails((p) => ({
+// 										...p,
+// 										customerName: e.target.value,
+// 									}))
+// 								}
+// 							/>
+// 						</div>
+
+// 						<div className='space-y-2'>
+// 							<label className='text-sm font-medium'>
+// 								Phone Number (Optional)
+// 							</label>
+// 							<Input
+// 								type='tel'
+// 								placeholder='Enter phone number'
+// 								value={orderDetails.customerPhone}
+// 								onChange={(e) =>
+// 									setOrderDetails((p) => ({
+// 										...p,
+// 										customerPhone: e.target.value,
+// 									}))
+// 								}
+// 							/>
+// 						</div>
+
+// 						{orderDetails.customerPhone &&
+// 							!customers.find(
+// 								(c) => c.phone === orderDetails.customerPhone
+// 							) && (
+// 								<div className='space-y-2'>
+// 									<label className='text-sm font-medium'>Referral Code</label>
+// 									<Input
+// 										placeholder='Optional referral code'
+// 										value={orderDetails.referralCode || ''}
+// 										onChange={(e) =>
+// 											setOrderDetails((p) => ({
+// 												...p,
+// 												referralCode: e.target.value.toUpperCase(),
+// 											}))
+// 										}
+// 									/>
+
+// 									<p className='text-xs text-muted-foreground'>
+// 										New customer? Enter a referral code for 100 bonus points.
+// 									</p>
+// 								</div>
+// 							)}
+
+// 						<div className='flex gap-2 pt-4'>
+// 							<Button
+// 								variant='outline'
+// 								className='flex-1'
+// 								onClick={() => setShowCustomerDetailsDialog(false)}>
+// 								Cancel
+// 							</Button>
+
+// 							<Button
+// 								className='flex-1'
+// 								onClick={() => setShowCustomerDetailsDialog(false)}>
+// 								Continue
+// 							</Button>
+// 						</div>
+// 					</div>
+// 				</DialogContent>
+// 			</Dialog>
+
+// 			{/* PAYMENT DIALOG – just for future extension; now we jump directly via method buttons */}
+// 			<Dialog
+// 				open={showPaymentDialog}
+// 				onOpenChange={setShowPaymentDialog}>
+// 				<DialogContent>
+// 					<DialogHeader>
+// 						<DialogTitle>Select Payment Method</DialogTitle>
+// 					</DialogHeader>
+// 					{/* You can leave this empty or mirror the four method buttons if you still use it */}
+// 				</DialogContent>
+// 			</Dialog>
+
+// 			{/* INVOICE POPUP */}
+// 			<Dialog
+// 				open={showInvoiceDialog}
+// 				onOpenChange={setShowInvoiceDialog}>
+// 				<DialogContent>
+// 					<DialogHeader>
+// 						<DialogTitle>
+// 							Order Complete — {settings.currencySymbol}
+// 							{total.toFixed(2)}
+// 						</DialogTitle>
+// 						<DialogDescription>
+// 							Choose how to handle the invoice.
+// 						</DialogDescription>
+// 					</DialogHeader>
+
+// 					<div className='space-y-4 py-4'>
+// 						<div className='bg-green-50 p-4 rounded-lg border border-green-200'>
+// 							<p className='text-green-800 font-medium'>Payment Successful!</p>
+// 							<p className='text-sm text-green-600'>
+// 								Paid via {orderDetails.paymentMethod?.toUpperCase()}
+// 							</p>
+// 						</div>
+
+// 						<Button
+// 							className='w-full h-12 gap-2'
+// 							onClick={() => {
+// 								alert('Printing invoice...');
+// 							}}>
+// 							<Printer size={18} />
+// 							Print Invoice
+// 						</Button>
+
+// 						<div className='grid grid-cols-2 gap-2'>
+// 							<Button
+// 								variant='outline'
+// 								className='h-12 gap-2 border-green-200 text-green-700 hover:bg-green-50'
+// 								onClick={downloadExcel}>
+// 								<FileSpreadsheet size={18} />
+// 								Excel
+// 							</Button>
+
+// 							<Button
+// 								variant='outline'
+// 								className='h-12 gap-2 border-red-200 text-red-700 hover:bg-red-50'
+// 								onClick={downloadPDF}>
+// 								<Download size={18} />
+// 								PDF
+// 							</Button>
+// 						</div>
+
+// 						{orderDetails.customerPhone && (
+// 							<Button
+// 								variant='outline'
+// 								className='w-full h-12 gap-2'
+// 								onClick={sendWhatsAppInvoice}>
+// 								<MessageCircle size={18} />
+// 								WhatsApp Invoice
+// 							</Button>
+// 						)}
+
+// 						<Button
+// 							variant='outline'
+// 							className='w-full h-12 gap-2'
+// 							onClick={resetAfterInvoice}>
+// 							<FileText size={18} />
+// 							Save & Continue
+// 						</Button>
+// 					</div>
+// 				</DialogContent>
+// 			</Dialog>
+// 		</div>
+// 	);
+// }
+
+
+
+/** @format */
+
 import { useState, useEffect } from 'react';
 import type { MouseEvent } from 'react';
 import { useAppContext } from '../contexts/AppContext';
@@ -996,1054 +2062,1114 @@ import { Separator } from './ui/separator';
 import { ScrollArea } from './ui/scroll-area';
 import { Input } from './ui/input';
 import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
 } from './ui/dialog';
 import {
-	Plus,
-	Minus,
-	ShoppingCart,
-	CreditCard,
-	Banknote,
-	Smartphone,
-	Printer,
-	FileText,
-	Trash2,
-	MessageCircle,
-	Users,
-	ShoppingBag,
-	Table as TableIcon,
-	Download,
-	FileSpreadsheet,
+  Plus,
+  Minus,
+  ShoppingCart,
+  CreditCard,
+  Banknote,
+  Smartphone,
+  Printer,
+  FileText,
+  Trash2,
+  MessageCircle,
+  Users,
+  ShoppingBag,
+  Table as TableIcon,
+  Download,
+  FileSpreadsheet,
 } from 'lucide-react';
-
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import { createOrder, type CreateOrderPayload } from '../api/orders';
 
 interface CartItem {
-	id: string;
-	name: string;
-	price: number;
-	quantity: number;
-	category: string;
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  category: string;
 }
 
 interface OrderDetails {
-	type: 'dine-in' | 'takeaway' | null;
-	tableNumber?: string;
-	customerName: string;
-	customerPhone: string;
-	paymentMethod: 'cash' | 'card' | 'upi' | 'split' | null;
-	referralCode?: string;
+  type: 'dine-in' | 'takeaway' | null;
+  tableNumber?: string;
+  customerName: string;
+  customerPhone: string;
+  paymentMethod: 'cash' | 'card' | 'upi' | 'split' | null;
+  referralCode?: string;
 }
 
 export function POSBilling() {
-	const {
-		tables,
-		menuItems: contextMenuItems,
-		settings,
-		calculateTaxes,
-		updateTable,
-		getTableById,
-		addOrder,
-		addCustomer,
-		customers,
-		awardLoyaltyPoints,
-		calculateLoyaltyTier,
-		generateReferralCode,
-		handleReferral,
-		addNotification,
-	} = useAppContext();
-
-	const [selectedCategory, setSelectedCategory] = useState('');
-	const [cart, setCart] = useState<CartItem[]>([]);
-	const [showOrderTypeDialog, setShowOrderTypeDialog] = useState(false);
-	const [showCustomerDetailsDialog, setShowCustomerDetailsDialog] =
-		useState(false);
-	const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-	const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
-
-	const [orderDetails, setOrderDetails] = useState<OrderDetails>({
-		type: null,
-		customerName: '',
-		customerPhone: '',
-		paymentMethod: null,
-		referralCode: '',
-	});
-
-	const categories = [
-		...new Set(contextMenuItems.map((item) => item.category)),
-	];
-
-	useEffect(() => {
-		if (
-			categories.length > 0 &&
-			(!selectedCategory || !categories.includes(selectedCategory))
-		) {
-			setSelectedCategory(categories[0]);
-		}
-	}, [categories, selectedCategory]);
-
-	const menuItems = contextMenuItems;
-	const filteredItems = menuItems.filter(
-		(item) => item.category === selectedCategory && item.available
-	);
-
-	const availableTables = tables.map((table) => ({
-		id: table.id,
-		name: `Table ${table.number}`,
-		number: table.number,
-		isOccupied: table.status !== 'free',
-		status: table.status,
-		capacity: table.capacity,
-		customer: table.customer,
-		waiter: table.waiter,
-		statusDisplay:
-			table.status === 'occupied'
-				? 'Occupied'
-				: table.status === 'reserved'
-				? 'Reserved'
-				: 'Available',
-	}));
-
-	const addToCart = (item: any) => {
-		const existing = cart.find((i) => i.id === item.id);
-		if (existing) {
-			setCart(
-				cart.map((i) =>
-					i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
-				)
-			);
-		} else {
-			setCart([...cart, { ...item, quantity: 1 }]);
-		}
-	};
-
-	const updateQuantity = (id: string, inc: boolean) => {
-		setCart(
-			cart
-				.map((item) =>
-					item.id === id
-						? {
-								...item,
-								quantity: inc ? item.quantity + 1 : item.quantity - 1,
-						  }
-						: item
-				)
-				.filter((item) => item.quantity > 0)
-		);
-	};
-
-	const removeFromCart = (id: string) => {
-		setCart(cart.filter((i) => i.id !== id));
-	};
-
-	const subtotal = cart.reduce(
-		(sum, item) => sum + item.price * item.quantity,
-		0
-	);
-
-	const taxCalculation = cart.reduce(
-		(acc, item) => {
-			const menuItem = contextMenuItems.find((mi) => mi.id === item.id);
-			const itemTotal = item.price * item.quantity;
-			const itemTaxCategory =
-				menuItem?.taxCategory || settings.defaultTaxCategory;
-
-			const { taxes, totalTax } = calculateTaxes(itemTotal, itemTaxCategory);
-
-			acc.totalTax += totalTax;
-			taxes.forEach((tax) => {
-				const existing = acc.taxes.find((t) => t.name === tax.name);
-				if (existing) existing.amount += tax.amount;
-				else acc.taxes.push({ ...tax });
-			});
-
-			return acc;
-		},
-		{
-			taxes: [] as Array<{ name: string; rate: number; amount: number }>,
-			totalTax: 0,
-		}
-	);
-
-	const total = subtotal + taxCalculation.totalTax;
-
-	const startNewOrder = () => {
-		if (cart.length === 0) setShowOrderTypeDialog(true);
-		else setShowCustomerDetailsDialog(true);
-	};
-
-	const handleOrderTypeSelect = (type: 'dine-in' | 'takeaway') => {
-		setOrderDetails((p) => ({ ...p, type }));
-		setShowOrderTypeDialog(false);
-		setShowCustomerDetailsDialog(true);
-	};
-
-	const handleTableSelect = async (tableId: string) => {
-		const table = getTableById(tableId);
-		if (!table) return;
-
-		setOrderDetails((p) => ({
-			...p,
-			tableNumber: `Table ${table.number}`,
-		}));
-
-		if (table.status === 'free') {
-			await updateTable(tableId, {
-				status: 'occupied',
-				lastOrderAt: new Date().toISOString(),
-			});
-		}
-	};
-
-	// payment selection: send to backend, then show invoice
-	const handlePaymentMethodSelect = async (
-		method: 'cash' | 'card' | 'upi' | 'split'
-	) => {
-		setOrderDetails((p) => ({ ...p, paymentMethod: method }));
-		setShowPaymentDialog(false);
-		await handleCompleteOrder();
-		setShowInvoiceDialog(true);
-	};
-
-	const handleCompleteOrder = async () => {
-		if (!orderDetails.type || cart.length === 0) return;
-
-		const payload: CreateOrderPayload = {
-			tableNumber:
-				orderDetails.type === 'dine-in' && orderDetails.tableNumber
-					? parseInt(orderDetails.tableNumber.replace('Table ', ''))
-					: undefined,
-			orderSource: orderDetails.type,
-			customerName: orderDetails.customerName || undefined,
-			customerPhone: orderDetails.customerPhone || undefined,
-			paymentMethod: (orderDetails.paymentMethod || 'cash') as
-				| 'cash'
-				| 'card'
-				| 'upi'
-				| 'split',
-			status: 'pending',
-			items: cart.map((i) => ({
-				id: i.id,
-				name: i.name,
-				quantity: i.quantity,
-				price: i.price,
-				category: i.category,
-			})),
-		};
-
-		console.log('POSBilling creating order with payload:', payload);
-		const createdOrder = await createOrder(payload);
-		console.log('Order created:', createdOrder);
-
-		// make sure UI sees it as pending
-		addOrder({
-			...createdOrder,
-			status: 'pending',
-		});
-
-		const effectiveTotal = createdOrder.totalAmount ?? total;
-
-		if (orderDetails.customerPhone && orderDetails.customerName) {
-			const existing = customers.find(
-				(c) => c.phone === orderDetails.customerPhone
-			);
-
-			if (existing) {
-				const points = awardLoyaltyPoints(existing.id, effectiveTotal);
-				addNotification({
-					title: 'Loyalty Points Earned!',
-					message: `${existing.name} earned ${points} points`,
-					type: 'success',
-				});
-			} else {
-				const newId = `CUST${Date.now()}`;
-				const referralCode = generateReferralCode(newId);
-				const tier = calculateLoyaltyTier(effectiveTotal);
-
-				addCustomer({
-					id: newId,
-					name: orderDetails.customerName,
-					phone: orderDetails.customerPhone,
-					email: '',
-					joinDate: new Date().toISOString().split('T')[0],
-					totalOrders: 1,
-					totalSpent: effectiveTotal,
-					loyaltyPoints: Math.floor(effectiveTotal),
-					loyaltyTier: tier,
-					lastVisit: new Date().toISOString().split('T')[0],
-					averageRating: 0,
-					tags: ['New Customer'],
-					status: 'active',
-					referralCode,
-					referralCount: 0,
-				});
-
-				if (orderDetails.referralCode) {
-					handleReferral(newId, orderDetails.referralCode);
-				}
-			}
-		}
-
-		if (orderDetails.type === 'dine-in' && orderDetails.tableNumber) {
-			const tableNumber = parseInt(
-				orderDetails.tableNumber.replace('Table ', '')
-			);
-			const table = tables.find((t) => t.number === tableNumber);
-			if (table) {
-				await updateTable(table.id, {
-					status: 'occupied',
-					currentOrderId: createdOrder.id,
-					lastOrderAt: new Date().toISOString(),
-				});
-			}
-		}
-	};
-
-	const sendWhatsAppInvoice = () => {
-		const message = `Hi ${orderDetails.customerName}, your order total is ${
-			settings.currencySymbol
-		}${total.toFixed(2)}. Thank you for visiting us!`;
-		const whatsappUrl = `https://wa.me/91${
-			orderDetails.customerPhone
-		}?text=${encodeURIComponent(message)}`;
-		window.open(whatsappUrl, '_blank');
-	};
-
-	const downloadExcel = () => {
-		const invoiceData: Record<string, any[][]> = {
-			'Invoice Details': [
-				['Restaurant Name', 'Eat With Me'],
-				[
-					'Order Type',
-					orderDetails.type === 'dine-in' ? 'Dine-In' : 'Takeaway',
-				],
-				['Table Number', orderDetails.tableNumber || 'N/A'],
-				['Customer Name', orderDetails.customerName || 'Walk-in Customer'],
-				['Customer Phone', orderDetails.customerPhone || 'N/A'],
-				['Payment Method', orderDetails.paymentMethod?.toUpperCase() || 'N/A'],
-				['Date & Time', new Date().toLocaleString()],
-				['Invoice #', `INV-${Date.now()}`],
-				[],
-				['Item Name', 'Quantity', 'Unit Price', 'Total Price'],
-			],
-		};
-
-		cart.forEach((item) => {
-			invoiceData['Invoice Details'].push([
-				item.name,
-				item.quantity.toString(),
-				`${settings.currencySymbol}${item.price.toFixed(2)}`,
-				`${settings.currencySymbol}${(item.price * item.quantity).toFixed(2)}`,
-			]);
-		});
-
-		invoiceData['Invoice Details'].push([]);
-		invoiceData['Invoice Details'].push([
-			'',
-			'',
-			'Subtotal:',
-			`${settings.currencySymbol}${subtotal.toFixed(2)}`,
-		]);
-
-		taxCalculation.taxes.forEach((tax) => {
-			invoiceData['Invoice Details'].push([
-				'',
-				'',
-				`${tax.name} (${tax.rate}%):`,
-				`${settings.currencySymbol}${tax.amount.toFixed(2)}`,
-			]);
-		});
-
-		invoiceData['Invoice Details'].push([
-			'',
-			'',
-			'Total:',
-			`${settings.currencySymbol}${total.toFixed(2)}`,
-		]);
-
-		const ws = XLSX.utils.aoa_to_sheet(invoiceData['Invoice Details']);
-		const wb = XLSX.utils.book_new();
-		XLSX.utils.book_append_sheet(wb, ws, 'Invoice');
-
-		ws['!cols'] = [{ width: 25 }, { width: 10 }, { width: 15 }, { width: 15 }];
-
-		const fileName = `Invoice_${orderDetails.customerName || 'Customer'}_${
-			new Date().toISOString().split('T')[0]
-		}.xlsx`;
-		XLSX.writeFile(wb, fileName);
-	};
-
-	const downloadPDF = () => {
-		const doc = new jsPDF();
-		const pageWidth = doc.internal.pageSize.width;
-		let y = 20;
-
-		doc.setFontSize(20);
-		doc.setTextColor(30, 64, 175);
-		doc.text('Eat With Me', pageWidth / 2, y, { align: 'center' });
-		y += 10;
-
-		doc.setFontSize(16);
-		doc.text('Invoice', pageWidth / 2, y, { align: 'center' });
-		y += 20;
-
-		doc.setFontSize(12);
-		doc.setTextColor(0, 0, 0);
-
-		doc.text(`Invoice #: INV-${Date.now()}`, 20, y);
-		y += 7;
-		doc.text(`Date & Time: ${new Date().toLocaleString()}`, 20, y);
-		y += 7;
-
-		doc.text(
-			`Order Type: ${orderDetails.type === 'dine-in' ? 'Dine-In' : 'Takeaway'}`,
-			20,
-			y
-		);
-		y += 7;
-
-		if (orderDetails.tableNumber) {
-			doc.text(`Table: ${orderDetails.tableNumber}`, 20, y);
-			y += 7;
-		}
-
-		doc.text(
-			`Customer: ${orderDetails.customerName || 'Walk-in Customer'}`,
-			20,
-			y
-		);
-		y += 7;
-
-		if (orderDetails.customerPhone) {
-			doc.text(`Phone: ${orderDetails.customerPhone}`, 20, y);
-			y += 7;
-		}
-
-		doc.text(
-			`Payment: ${orderDetails.paymentMethod?.toUpperCase() || 'N/A'}`,
-			20,
-			y
-		);
-		y += 15;
-
-		doc.setFontSize(10);
-		doc.setFillColor(30, 64, 175);
-		doc.setTextColor(255, 255, 255);
-		doc.rect(20, y - 5, pageWidth - 40, 10, 'F');
-
-		doc.text('Item', 25, y);
-		doc.text('Qty', 100, y);
-		doc.text('Price', 130, y);
-		doc.text('Total', 160, y);
-
-		y += 10;
-		doc.setTextColor(0, 0, 0);
-
-		cart.forEach((item, index) => {
-			if (y > 250) {
-				doc.addPage();
-				y = 20;
-			}
-
-			if (index % 2 === 0) {
-				doc.setFillColor(248, 250, 252);
-				doc.rect(20, y - 5, pageWidth - 40, 10, 'F');
-			}
-
-			doc.text(item.name.substring(0, 25), 25, y);
-			doc.text(item.quantity.toString(), 105, y);
-			doc.text(`${settings.currencySymbol}${item.price.toFixed(2)}`, 135, y);
-			doc.text(
-				`${settings.currencySymbol}${(item.price * item.quantity).toFixed(2)}`,
-				165,
-				y
-			);
-
-			y += 8;
-		});
-
-		y += 10;
-		doc.line(20, y - 5, pageWidth - 20, y - 5);
-
-		doc.text('Subtotal:', 130, y);
-		doc.text(subtotal.toFixed(2), 165, y);
-		y += 7;
-
-		taxCalculation.taxes.forEach((t) => {
-			doc.text(`${t.name} (${t.rate}%):`, 130, y);
-			doc.text(t.amount.toFixed(2), 165, y);
-			y += 7;
-		});
-
-		doc.setFontSize(12);
-		doc.text('Total:', 130, y);
-		doc.text(total.toFixed(2), 165, y);
-
-		y += 20;
-		doc.setFontSize(10);
-		doc.text('Thank you for visiting Eat With Me!', pageWidth / 2, y, {
-			align: 'center',
-		});
-
-		const fileName = `Invoice_${orderDetails.customerName || 'Customer'}_${
-			new Date().toISOString().split('T')[0]
-		}.pdf`;
-
-		doc.save(fileName);
-	};
-
-	const resetAfterInvoice = () => {
-		setCart([]);
-		setOrderDetails({
-			type: null,
-			customerName: '',
-			customerPhone: '',
-			paymentMethod: null,
-			referralCode: '',
-		});
-		setShowInvoiceDialog(false);
-	};
-
-	return (
-		<div className='flex flex-col lg:flex-row h-full bg-background'>
-			{/* MENU SECTION */}
-			<div className='flex-1 p-4 space-y-4'>
-				{orderDetails.type && (
-					<Card className='p-4 bg-primary/5 border-primary/20'>
-						<div className='flex items-center justify-between'>
-							<div className='flex items-center gap-3'>
-								{orderDetails.type === 'dine-in' ? (
-									<TableIcon className='w-5 h-5 text-primary' />
-								) : (
-									<ShoppingBag className='w-5 h-5 text-primary' />
-								)}
-
-								<div>
-									<p className='font-medium'>
-										{orderDetails.type === 'dine-in'
-											? 'Dine-In Order'
-											: 'Takeaway Order'}
-									</p>
-									<p className='text-sm text-muted-foreground'>
-										{orderDetails.tableNumber &&
-											`Table: ${orderDetails.tableNumber}`}
-										{orderDetails.customerName &&
-											` • Customer: ${orderDetails.customerName}`}
-									</p>
-								</div>
-							</div>
-
-							<Button
-								variant='outline'
-								size='sm'
-								onClick={() => {
-									resetAfterInvoice();
-								}}>
-								New Order
-							</Button>
-						</div>
-					</Card>
-				)}
-
-				{/* CATEGORY BUTTONS */}
-				<ScrollArea className='w-full'>
-					<div className='flex gap-2 pb-2'>
-						{categories.map((cat) => (
-							<Button
-								key={cat}
-								variant={selectedCategory === cat ? 'default' : 'outline'}
-								className={`whitespace-nowrap ${
-									selectedCategory === cat
-										? 'bg-primary text-primary-foreground'
-										: 'border-primary text-primary hover:bg-primary/10'
-								}`}
-								onClick={() => setSelectedCategory(cat)}>
-								{cat}
-							</Button>
-						))}
-					</div>
-				</ScrollArea>
-
-				{/* MENU GRID */}
-				<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'>
-					{filteredItems.map((item) => (
-						<Card
-							key={item.id}
-							className={`border-0 shadow-md hover:shadow-lg transition-all ${
-								!item.available
-									? 'opacity-50'
-									: 'cursor-pointer hover:scale-105'
-							}`}
-							onClick={() => {
-								if (!item.available) return;
-								if (!orderDetails.type) {
-									setShowOrderTypeDialog(true);
-								} else {
-									addToCart(item);
-								}
-							}}>
-							<CardContent className='p-4'>
-								<div className='flex justify-between items-start mb-2'>
-									<h4 className='font-medium text-primary line-clamp-2'>
-										{item.name}
-									</h4>
-
-									{!item.available && (
-										<Badge
-											variant='destructive'
-											className='text-xs'>
-											Out of Stock
-										</Badge>
-									)}
-								</div>
-
-								<div className='flex items-center justify-between'>
-									<div className='flex items-center gap-1'>
-										<span className='text-primary'>
-											{settings.currencySymbol}
-										</span>
-										<span className='text-lg font-semibold text-primary'>
-											{item.price}
-										</span>
-									</div>
-
-									<Button
-										size='sm'
-										className='w-8 h-8 rounded-full p-0 bg-primary hover:bg-primary/90'
-										disabled={!item.available}
-										onClick={(e: MouseEvent<HTMLButtonElement>) => {
-											e.stopPropagation();
-											if (!orderDetails.type) {
-												setShowOrderTypeDialog(true);
-											} else {
-												addToCart(item);
-											}
-										}}>
-										<Plus size={16} />
-									</Button>
-								</div>
-							</CardContent>
-						</Card>
-					))}
-				</div>
-			</div>
-
-			{/* CART SECTION */}
-			<div className='w-full lg:w-96 bg-card border-l border-border p-4'>
-				<Card className='h-full border-0 shadow-lg'>
-					<CardHeader>
-						<CardTitle className='flex items-center gap-2 text-primary'>
-							<ShoppingCart size={20} />
-							Order Summary
-						</CardTitle>
-					</CardHeader>
-
-					<CardContent className='flex flex-col h-full'>
-						<ScrollArea className='flex-1 mb-4'>
-							{cart.length === 0 ? (
-								<div className='text-center text-muted-foreground py-8'>
-									<ShoppingCart
-										size={48}
-										className='mx-auto mb-4 opacity-50'
-									/>
-									<p>No items in cart</p>
-									<Button
-										className='mt-4'
-										onClick={startNewOrder}>
-										Start New Order
-									</Button>
-								</div>
-							) : (
-								<div className='space-y-3'>
-									{cart.map((item) => (
-										<div
-											key={item.id}
-											className='flex items-center justify-between p-3 bg-muted/50 rounded-lg'>
-											<div className='flex-1 min-w-0'>
-												<h5 className='font-medium truncate'>{item.name}</h5>
-
-												<div className='flex items-center gap-1 text-sm text-muted-foreground'>
-													<span className='text-primary'>
-														{settings.currencySymbol}
-													</span>
-													<span>
-														{item.price} × {item.quantity}
-													</span>
-												</div>
-											</div>
-
-											<div className='flex items-center gap-2 ml-2'>
-												<Button
-													size='sm'
-													variant='outline'
-													className='w-8 h-8 p-0'
-													onClick={() => updateQuantity(item.id, false)}>
-													<Minus size={12} />
-												</Button>
-
-												<span className='w-8 text-center font-medium'>
-													{item.quantity}
-												</span>
-
-												<Button
-													size='sm'
-													variant='outline'
-													className='w-8 h-8 p-0'
-													onClick={() => updateQuantity(item.id, true)}>
-													<Plus size={12} />
-												</Button>
-
-												<Button
-													size='sm'
-													variant='destructive'
-													className='w-8 h-8 p-0 ml-1'
-													onClick={() => removeFromCart(item.id)}>
-													<Trash2 size={12} />
-												</Button>
-											</div>
-										</div>
-									))}
-								</div>
-							)}
-						</ScrollArea>
-
-						{/* TOTALS */}
-						{cart.length > 0 && (
-							<div className='space-y-4 border-t border-border pt-4'>
-								<div className='space-y-2'>
-									<div className='flex justify-between'>
-										<span>Subtotal</span>
-										<span>
-											{settings.currencySymbol}
-											{subtotal.toFixed(2)}
-										</span>
-									</div>
-
-									{taxCalculation.taxes.map((tax, idx) => (
-										<div
-											key={idx}
-											className='flex justify-between text-sm text-muted-foreground'>
-											<span>
-												{tax.name} ({tax.rate}%)
-											</span>
-											<span>
-												{settings.currencySymbol}
-												{tax.amount.toFixed(2)}
-											</span>
-										</div>
-									))}
-
-									<Separator />
-
-									<div className='flex justify-between font-semibold text-lg text-primary'>
-										<span>Total</span>
-										<span>
-											{settings.currencySymbol}
-											{total.toFixed(2)}
-										</span>
-									</div>
-								</div>
-
-								{orderDetails.customerName && (
-									<div className='bg-muted/50 p-2 rounded text-sm'>
-										<p className='font-medium'>{orderDetails.customerName}</p>
-										<p className='text-muted-foreground'>
-											{orderDetails.customerPhone}
-										</p>
-									</div>
-								)}
-
-								<Button
-									variant='outline'
-									className='h-12 flex-col gap-1 border-green-200 text-green-700 hover:bg-green-50'
-									onClick={() => handlePaymentMethodSelect('cash')}>
-									<Banknote size={18} />
-									<span className='text-xs'>Cash</span>
-								</Button>
-
-								<Button
-									variant='outline'
-									className='h-12 flex-col gap-1 border-blue-200 text-blue-700 hover:bg-blue-50'
-									onClick={() => handlePaymentMethodSelect('card')}>
-									<CreditCard size={18} />
-									<span className='text-xs'>Card</span>
-								</Button>
-
-								<Button
-									variant='outline'
-									className='h-12 flex-col gap-1 border-purple-200 text-purple-700 hover:bg-purple-50'
-									onClick={() => handlePaymentMethodSelect('upi')}>
-									<Smartphone size={18} />
-									<span className='text-xs'>UPI</span>
-								</Button>
-
-								<Button
-									variant='outline'
-									className='h-12 flex-col gap-1 border-orange-200 text-orange-700 hover:bg-orange-50'
-									onClick={() => handlePaymentMethodSelect('split')}>
-									<FileText size={18} />
-									<span className='text-xs'>Split</span>
-								</Button>
-
-								<Button
-									className='w-full h-12 bg-primary hover:bg-primary/90'
-									onClick={() => {
-										if (!orderDetails.customerName) {
-											setShowCustomerDetailsDialog(true);
-										} else {
-											setShowPaymentDialog(true);
-										}
-									}}>
-									<Users
-										className='mr-2'
-										size={18}
-									/>
-									Proceed to Checkout
-								</Button>
-							</div>
-						)}
-					</CardContent>
-				</Card>
-			</div>
-
-			{/* ORDER TYPE POPUP */}
-			<Dialog
-				open={showOrderTypeDialog}
-				onOpenChange={setShowOrderTypeDialog}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Select Order Type</DialogTitle>
-						<DialogDescription>
-							Choose whether this is a dine-in or takeaway order.
-						</DialogDescription>
-					</DialogHeader>
-
-					<div className='grid gap-4 py-4'>
-						<Button
-							className='h-20 flex-col gap-2'
-							variant='outline'
-							onClick={() => handleOrderTypeSelect('dine-in')}>
-							<TableIcon size={24} />
-							<p className='font-medium'>Dine-In</p>
-						</Button>
-
-						<Button
-							className='h-20 flex-col gap-2'
-							variant='outline'
-							onClick={() => handleOrderTypeSelect('takeaway')}>
-							<ShoppingBag size={24} />
-							<p className='font-medium'>Takeaway</p>
-						</Button>
-					</div>
-				</DialogContent>
-			</Dialog>
-
-			{/* CUSTOMER DETAILS POPUP */}
-			<Dialog
-				open={showCustomerDetailsDialog}
-				onOpenChange={setShowCustomerDetailsDialog}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Customer Details</DialogTitle>
-					</DialogHeader>
-
-					<div className='space-y-4 py-4'>
-						{orderDetails.type === 'dine-in' && (
-							<div className='space-y-2'>
-								<label className='text-sm font-medium'>Select Table</label>
-
-								<div className='grid grid-cols-3 gap-2 max-h-40 overflow-y-auto'>
-									{availableTables.map((table) => (
-										<Button
-											key={table.id}
-											variant={
-												orderDetails.tableNumber === `Table ${table.number}`
-													? 'default'
-													: 'outline'
-											}
-											disabled={table.isOccupied}
-											onClick={() => handleTableSelect(table.id)}
-											className={`h-12 text-xs ${
-												table.status === 'occupied'
-													? 'border-red-300 text-red-700'
-													: table.status === 'reserved'
-													? 'border-yellow-300 text-yellow-700'
-													: 'border-green-300 text-green-700'
-											}`}>
-											<div className='flex flex-col items-center'>
-												<span>{table.name}</span>
-												<span className='text-[10px] opacity-75'>
-													{table.statusDisplay}
-												</span>
-											</div>
-										</Button>
-									))}
-								</div>
-							</div>
-						)}
-
-						<div className='space-y-2'>
-							<label className='text-sm font-medium'>
-								Customer Name (Optional)
-							</label>
-							<Input
-								placeholder='Enter name'
-								value={orderDetails.customerName}
-								onChange={(e) =>
-									setOrderDetails((p) => ({
-										...p,
-										customerName: e.target.value,
-									}))
-								}
-							/>
-						</div>
-
-						<div className='space-y-2'>
-							<label className='text-sm font-medium'>
-								Phone Number (Optional)
-							</label>
-							<Input
-								type='tel'
-								placeholder='Enter phone number'
-								value={orderDetails.customerPhone}
-								onChange={(e) =>
-									setOrderDetails((p) => ({
-										...p,
-										customerPhone: e.target.value,
-									}))
-								}
-							/>
-						</div>
-
-						{orderDetails.customerPhone &&
-							!customers.find(
-								(c) => c.phone === orderDetails.customerPhone
-							) && (
-								<div className='space-y-2'>
-									<label className='text-sm font-medium'>Referral Code</label>
-									<Input
-										placeholder='Optional referral code'
-										value={orderDetails.referralCode || ''}
-										onChange={(e) =>
-											setOrderDetails((p) => ({
-												...p,
-												referralCode: e.target.value.toUpperCase(),
-											}))
-										}
-									/>
-
-									<p className='text-xs text-muted-foreground'>
-										New customer? Enter a referral code for 100 bonus points.
-									</p>
-								</div>
-							)}
-
-						<div className='flex gap-2 pt-4'>
-							<Button
-								variant='outline'
-								className='flex-1'
-								onClick={() => setShowCustomerDetailsDialog(false)}>
-								Cancel
-							</Button>
-
-							<Button
-								className='flex-1'
-								onClick={() => setShowCustomerDetailsDialog(false)}>
-								Continue
-							</Button>
-						</div>
-					</div>
-				</DialogContent>
-			</Dialog>
-
-			{/* PAYMENT DIALOG – just for future extension; now we jump directly via method buttons */}
-			<Dialog
-				open={showPaymentDialog}
-				onOpenChange={setShowPaymentDialog}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Select Payment Method</DialogTitle>
-					</DialogHeader>
-					{/* You can leave this empty or mirror the four method buttons if you still use it */}
-				</DialogContent>
-			</Dialog>
-
-			{/* INVOICE POPUP */}
-			<Dialog
-				open={showInvoiceDialog}
-				onOpenChange={setShowInvoiceDialog}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>
-							Order Complete — {settings.currencySymbol}
-							{total.toFixed(2)}
-						</DialogTitle>
-						<DialogDescription>
-							Choose how to handle the invoice.
-						</DialogDescription>
-					</DialogHeader>
-
-					<div className='space-y-4 py-4'>
-						<div className='bg-green-50 p-4 rounded-lg border border-green-200'>
-							<p className='text-green-800 font-medium'>Payment Successful!</p>
-							<p className='text-sm text-green-600'>
-								Paid via {orderDetails.paymentMethod?.toUpperCase()}
-							</p>
-						</div>
-
-						<Button
-							className='w-full h-12 gap-2'
-							onClick={() => {
-								alert('Printing invoice...');
-							}}>
-							<Printer size={18} />
-							Print Invoice
-						</Button>
-
-						<div className='grid grid-cols-2 gap-2'>
-							<Button
-								variant='outline'
-								className='h-12 gap-2 border-green-200 text-green-700 hover:bg-green-50'
-								onClick={downloadExcel}>
-								<FileSpreadsheet size={18} />
-								Excel
-							</Button>
-
-							<Button
-								variant='outline'
-								className='h-12 gap-2 border-red-200 text-red-700 hover:bg-red-50'
-								onClick={downloadPDF}>
-								<Download size={18} />
-								PDF
-							</Button>
-						</div>
-
-						{orderDetails.customerPhone && (
-							<Button
-								variant='outline'
-								className='w-full h-12 gap-2'
-								onClick={sendWhatsAppInvoice}>
-								<MessageCircle size={18} />
-								WhatsApp Invoice
-							</Button>
-						)}
-
-						<Button
-							variant='outline'
-							className='w-full h-12 gap-2'
-							onClick={resetAfterInvoice}>
-							<FileText size={18} />
-							Save & Continue
-						</Button>
-					</div>
-				</DialogContent>
-			</Dialog>
-		</div>
-	);
+  const {
+    tables,
+    menuItems: contextMenuItems,
+    settings,
+    calculateTaxes,
+    updateTable,
+    getTableById,
+    addOrder,
+    addCustomer,
+    customers,
+    awardLoyaltyPoints,
+    calculateLoyaltyTier,
+    generateReferralCode,
+    handleReferral,
+    addNotification,
+  } = useAppContext();
+
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [showOrderTypeDialog, setShowOrderTypeDialog] = useState(false);
+  const [showCustomerDetailsDialog, setShowCustomerDetailsDialog] =
+    useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
+
+  const [orderDetails, setOrderDetails] = useState<OrderDetails>({
+    type: null,
+    customerName: '',
+    customerPhone: '',
+    paymentMethod: null,
+    referralCode: '',
+  });
+
+  // unique categories
+  const categories = [
+    ...new Set(contextMenuItems.map((item) => item.category)),
+  ];
+
+  useEffect(() => {
+    if (
+      categories.length > 0 &&
+      (!selectedCategory || !categories.includes(selectedCategory))
+    ) {
+      setSelectedCategory(categories[0]);
+    }
+  }, [categories, selectedCategory]);
+
+  const menuItems = contextMenuItems;
+  const filteredItems = menuItems.filter(
+    (item) => item.category === selectedCategory && item.available
+  );
+
+  // tables mapped for selection
+  const availableTables = tables.map((table) => ({
+    id: table.id,
+    name: `Table ${table.number}`,
+    number: table.number,
+    isOccupied: table.status !== 'free',
+    status: table.status,
+    capacity: table.capacity,
+    customer: table.customer,
+    waiter: table.waiter,
+    statusDisplay:
+      table.status === 'occupied'
+        ? 'Occupied'
+        : table.status === 'reserved'
+        ? 'Reserved'
+        : 'Available',
+  }));
+
+  const addToCart = (item: any) => {
+    const existing = cart.find((i) => i.id === item.id);
+    if (existing) {
+      setCart(
+        cart.map((i) =>
+          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+        )
+      );
+    } else {
+      setCart([...cart, { ...item, quantity: 1 }]);
+    }
+  };
+
+  const updateQuantity = (id: string, inc: boolean) => {
+    setCart(
+      cart
+        .map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                quantity: inc ? item.quantity + 1 : item.quantity - 1,
+              }
+            : item
+        )
+        .filter((item) => item.quantity > 0)
+    );
+  };
+
+  const removeFromCart = (id: string) => {
+    setCart(cart.filter((i) => i.id !== id));
+  };
+
+  const subtotal = cart.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
+
+  // tax calculation based on menu items + settings
+  const taxCalculation = cart.reduce(
+    (acc, item) => {
+      const menuItem = contextMenuItems.find((mi) => mi.id === item.id);
+      const itemTotal = item.price * item.quantity;
+      const itemTaxCategory =
+        menuItem?.taxCategory || settings.defaultTaxCategory;
+
+      const { taxes, totalTax } = calculateTaxes(itemTotal, itemTaxCategory);
+
+      acc.totalTax += totalTax;
+      taxes.forEach((tax) => {
+        const existingTax = acc.taxes.find((t) => t.name === tax.name);
+        if (existingTax) {
+          existingTax.amount += tax.amount;
+        } else {
+          acc.taxes.push({ ...tax });
+        }
+      });
+
+      return acc;
+    },
+    {
+      taxes: [] as Array<{ name: string; rate: number; amount: number }>,
+      totalTax: 0,
+    }
+  );
+
+  const total = subtotal + taxCalculation.totalTax;
+
+  const startNewOrder = () => {
+    if (cart.length === 0) setShowOrderTypeDialog(true);
+    else setShowCustomerDetailsDialog(true);
+  };
+
+  const handleOrderTypeSelect = (type: 'dine-in' | 'takeaway') => {
+    setOrderDetails((p) => ({ ...p, type }));
+    setShowOrderTypeDialog(false);
+    setShowCustomerDetailsDialog(true);
+  };
+
+  const handleTableSelect = async (tableId: string) => {
+    const table = getTableById(tableId);
+    if (!table) return;
+
+    setOrderDetails((p) => ({
+      ...p,
+      tableNumber: `Table ${table.number}`,
+    }));
+
+    if (table.status === 'free') {
+      await updateTable(tableId, {
+        status: 'occupied',
+        lastOrderAt: new Date().toISOString(),
+      });
+    }
+  };
+
+  const handlePaymentMethodSelect = async (
+    method: 'cash' | 'card' | 'upi' | 'split'
+  ) => {
+    setOrderDetails((p) => ({ ...p, paymentMethod: method }));
+    setShowPaymentDialog(false);
+    await handleCompleteOrder();
+    setShowInvoiceDialog(true);
+  };
+
+  const handleCompleteOrder = async () => {
+    if (!orderDetails.type || cart.length === 0) return;
+
+    const payload: CreateOrderPayload = {
+      tableNumber:
+        orderDetails.type === 'dine-in' && orderDetails.tableNumber
+          ? parseInt(orderDetails.tableNumber.replace('Table ', ''))
+          : undefined,
+      orderSource: orderDetails.type,
+      customerName: orderDetails.customerName || undefined,
+      customerPhone: orderDetails.customerPhone || undefined,
+      paymentMethod: (orderDetails.paymentMethod || 'cash') as
+        | 'cash'
+        | 'card'
+        | 'upi'
+        | 'split',
+      status: 'pending',
+      items: cart.map((i) => ({
+        id: i.id,
+        name: i.name,
+        quantity: i.quantity,
+        price: i.price,
+        category: i.category,
+      })),
+    };
+
+    console.log('POSBilling creating order with payload:', payload);
+    const createdOrder = await createOrder(payload);
+    console.log('Order created:', createdOrder);
+
+    // ensure UI sees it as pending
+    addOrder({
+      ...createdOrder,
+      status: 'pending',
+    });
+
+    const effectiveTotal = createdOrder.totalAmount ?? total;
+
+    // loyalty / customer handling
+    if (orderDetails.customerPhone && orderDetails.customerName) {
+      const existing = customers.find(
+        (c) => c.phone === orderDetails.customerPhone
+      );
+
+      if (existing) {
+        const points = awardLoyaltyPoints(existing.id, effectiveTotal);
+        addNotification({
+          title: 'Loyalty Points Earned!',
+          message: `${existing.name} earned ${points} points`,
+          type: 'success',
+        });
+      } else {
+        const newId = `CUST${Date.now()}`;
+        const referralCode = generateReferralCode(newId);
+        const tier = calculateLoyaltyTier(effectiveTotal);
+
+        addCustomer({
+          id: newId,
+          name: orderDetails.customerName,
+          phone: orderDetails.customerPhone,
+          email: '',
+          joinDate: new Date().toISOString().split('T')[0],
+          totalOrders: 1,
+          totalSpent: effectiveTotal,
+          loyaltyPoints: Math.floor(effectiveTotal),
+          loyaltyTier: tier,
+          lastVisit: new Date().toISOString().split('T')[0],
+          averageRating: 0,
+          tags: ['New Customer'],
+          status: 'active',
+          referralCode,
+          referralCount: 0,
+        });
+
+        if (orderDetails.referralCode) {
+          handleReferral(newId, orderDetails.referralCode);
+        }
+      }
+    }
+
+    // update table state for dine-in
+    if (orderDetails.type === 'dine-in' && orderDetails.tableNumber) {
+      const tableNumber = parseInt(
+        orderDetails.tableNumber.replace('Table ', '')
+      );
+      const table = tables.find((t) => t.number === tableNumber);
+      if (table) {
+        await updateTable(table.id, {
+          status: 'occupied',
+          currentOrderId: createdOrder.id,
+          lastOrderAt: new Date().toISOString(),
+        });
+      }
+    }
+  };
+
+  const sendWhatsAppInvoice = () => {
+    const message = `Hi ${orderDetails.customerName}, your order total is ${
+      settings.currencySymbol
+    }${total.toFixed(
+      2
+    )}. Thank you for visiting us!`;
+    const whatsappUrl = `https://wa.me/91${
+      orderDetails.customerPhone
+    }?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const downloadExcel = () => {
+    const invoiceData = {
+      'Invoice Details': [
+        ['Restaurant Name', settings.restaurantName || 'Eat With Me'],
+        [
+          'Order Type',
+          orderDetails.type === 'dine-in' ? 'Dine-In' : 'Takeaway',
+        ],
+        ['Table Number', orderDetails.tableNumber || 'N/A'],
+        [
+          'Customer Name',
+          orderDetails.customerName || 'Walk-in Customer',
+        ],
+        ['Customer Phone', orderDetails.customerPhone || 'N/A'],
+        [
+          'Payment Method',
+          orderDetails.paymentMethod?.toUpperCase() || 'N/A',
+        ],
+        ['Date & Time', new Date().toLocaleString()],
+        ['Invoice #', `INV-${Date.now()}`],
+        [],
+        ['Item Name', 'Quantity', 'Unit Price', 'Total Price'],
+      ],
+    };
+
+    cart.forEach((item) => {
+      invoiceData['Invoice Details'].push([
+        item.name,
+        item.quantity.toString(),
+        `${settings.currencySymbol}${item.price.toFixed(2)}`,
+        `${settings.currencySymbol}${(
+          item.price * item.quantity
+        ).toFixed(2)}`,
+      ]);
+    });
+
+    invoiceData['Invoice Details'].push([]);
+    invoiceData['Invoice Details'].push([
+      '',
+      '',
+      'Subtotal:',
+      `${settings.currencySymbol}${subtotal.toFixed(2)}`,
+    ]);
+
+    taxCalculation.taxes.forEach((tax) => {
+      invoiceData['Invoice Details'].push([
+        '',
+        '',
+        `${tax.name} (${tax.rate}%):`,
+        `${settings.currencySymbol}${tax.amount.toFixed(2)}`,
+      ]);
+    });
+
+    invoiceData['Invoice Details'].push([
+      '',
+      '',
+      'Total:',
+      `${settings.currencySymbol}${total.toFixed(2)}`,
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet(
+      invoiceData['Invoice Details']
+    );
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Invoice');
+
+    ws['!cols'] = [
+      { width: 25 },
+      { width: 10 },
+      { width: 15 },
+      { width: 15 },
+    ];
+
+    const fileName = `Invoice_${
+      orderDetails.customerName || 'Customer'
+    }_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
+  const downloadPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    let yPosition = 20;
+
+    // header
+    doc.setFontSize(20);
+    doc.setTextColor(30, 64, 175);
+    doc.text(
+      settings.restaurantName || 'Eat With Me',
+      pageWidth / 2,
+      yPosition,
+      { align: 'center' }
+    );
+    yPosition += 10;
+
+    doc.setFontSize(16);
+    doc.text('Invoice', pageWidth / 2, yPosition, {
+      align: 'center',
+    });
+    yPosition += 20;
+
+    // invoice details
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+
+    const invoiceNumber = `INV-${Date.now()}`;
+    const dateTime = new Date().toLocaleString();
+
+    doc.text(`Invoice #: ${invoiceNumber}`, 20, yPosition);
+    yPosition += 7;
+    doc.text(`Date & Time: ${dateTime}`, 20, yPosition);
+    yPosition += 7;
+    doc.text(
+      `Order Type: ${
+        orderDetails.type === 'dine-in' ? 'Dine-In' : 'Takeaway'
+      }`,
+      20,
+      yPosition
+    );
+    yPosition += 7;
+
+    if (orderDetails.tableNumber) {
+      doc.text(`Table: ${orderDetails.tableNumber}`, 20, yPosition);
+      yPosition += 7;
+    }
+
+    doc.text(
+      `Customer: ${
+        orderDetails.customerName || 'Walk-in Customer'
+      }`,
+      20,
+      yPosition
+    );
+    yPosition += 7;
+
+    if (orderDetails.customerPhone) {
+      doc.text(`Phone: ${orderDetails.customerPhone}`, 20, yPosition);
+      yPosition += 7;
+    }
+
+    doc.text(
+      `Payment: ${
+        orderDetails.paymentMethod?.toUpperCase() || 'N/A'
+      }`,
+      20,
+      yPosition
+    );
+    yPosition += 15;
+
+    // table header
+    doc.setFontSize(10);
+    doc.setFillColor(30, 64, 175);
+    doc.setTextColor(255, 255, 255);
+    doc.rect(20, yPosition - 5, pageWidth - 40, 10, 'F');
+
+    doc.text('Item', 25, yPosition);
+    doc.text('Qty', 100, yPosition);
+    doc.text('Price', 130, yPosition);
+    doc.text('Total', 160, yPosition);
+    yPosition += 10;
+
+    // items
+    doc.setTextColor(0, 0, 0);
+    cart.forEach((item, index) => {
+      if (yPosition > 250) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      if (index % 2 === 0) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(20, yPosition - 5, pageWidth - 40, 10, 'F');
+      }
+
+      doc.text(item.name.substring(0, 25), 25, yPosition);
+      doc.text(item.quantity.toString(), 105, yPosition);
+      doc.text(
+        `${settings.currencySymbol}${item.price.toFixed(2)}`,
+        135,
+        yPosition
+      );
+      doc.text(
+        `${settings.currencySymbol}${(
+          item.price * item.quantity
+        ).toFixed(2)}`,
+        165,
+        yPosition
+      );
+      yPosition += 8;
+    });
+
+    yPosition += 10;
+
+    // totals
+    doc.line(20, yPosition - 5, pageWidth - 20, yPosition - 5);
+    doc.text('Subtotal:', 130, yPosition);
+    doc.text(
+      `${settings.currencySymbol}${subtotal.toFixed(2)}`,
+      165,
+      yPosition
+    );
+    yPosition += 7;
+
+    taxCalculation.taxes.forEach((tax) => {
+      doc.text(`${tax.name} (${tax.rate}%):`, 130, yPosition);
+      doc.text(
+        `${settings.currencySymbol}${tax.amount.toFixed(2)}`,
+        165,
+        yPosition
+      );
+      yPosition += 7;
+    });
+
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text('Total:', 130, yPosition);
+    doc.text(
+      `${settings.currencySymbol}${total.toFixed(2)}`,
+      165,
+      yPosition
+    );
+
+    // footer
+    yPosition += 20;
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text(
+      `Thank you for visiting ${
+        settings.restaurantName || 'Eat With Me'
+      }!`,
+      pageWidth / 2,
+      yPosition,
+      { align: 'center' }
+    );
+
+    const fileName = `Invoice_${
+      orderDetails.customerName || 'Customer'
+    }_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+  };
+
+  const resetAfterInvoice = () => {
+    setCart([]);
+    setOrderDetails({
+      type: null,
+      customerName: '',
+      customerPhone: '',
+      paymentMethod: null,
+      referralCode: '',
+    });
+    setShowInvoiceDialog(false);
+  };
+
+  return (
+    <div className='flex flex-col lg:flex-row h-full bg-background'>
+      {/* MENU SECTION */}
+      <div className='flex-1 p-4 space-y-4'>
+        <Card className='shadow-sm'>
+          <CardHeader className='pb-2'>
+            <CardTitle className='flex items-center gap-2 text-lg'>
+              <ShoppingCart size={20} />
+              POS Billing
+            </CardTitle>
+          </CardHeader>
+          <CardContent className='space-y-4'>
+            {/* Categories */}
+            <ScrollArea className='w-full'>
+              <div className='flex gap-2 pb-2'>
+                {categories.map((category) => (
+                  <Button
+                    key={category}
+                    variant={
+                      selectedCategory === category ? 'default' : 'outline'
+                    }
+                    className={`whitespace-nowrap ${
+                      selectedCategory === category
+                        ? 'bg-primary text-primary-foreground'
+                        : 'border-primary text-primary hover:bg-primary/10'
+                    }`}
+                    onClick={() => setSelectedCategory(category)}
+                  >
+                    {category}
+                  </Button>
+                ))}
+              </div>
+            </ScrollArea>
+
+            {/* Menu items */}
+            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'>
+              {filteredItems.map((item) => (
+                <Card
+                  key={item.id}
+                  className={`border-0 shadow-md hover:shadow-lg transition-all duration-200 ${
+                    !item.available
+                      ? 'opacity-50'
+                      : 'cursor-pointer hover:scale-105'
+                  }`}
+                  onClick={() => {
+                    if (item.available) addToCart(item);
+                  }}
+                >
+                  <CardContent className='p-4'>
+                    <div className='flex justify-between items-start mb-2'>
+                      <h4 className='font-medium text-primary line-clamp-2'>
+                        {item.name}
+                      </h4>
+                      {!item.available && (
+                        <Badge variant='destructive' className='text-xs'>
+                          Out of Stock
+                        </Badge>
+                      )}
+                    </div>
+                    <div className='flex items-center justify-between'>
+                      <div className='flex items-center gap-1'>
+                        <span className='text-primary'>
+                          {settings.currencySymbol}
+                          {item.price.toFixed(2)}
+                        </span>
+                      </div>
+                      <Badge
+                        variant='outline'
+                        className='text-[10px] uppercase tracking-wide'
+                      >
+                        {item.category}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* CART / SUMMARY SECTION */}
+      <div className='w-full lg:w-[380px] border-l bg-muted/30 h-full p-4 space-y-4'>
+        <Card className='h-full flex flex-col shadow-sm'>
+          <CardHeader className='pb-3'>
+            <CardTitle className='flex items-center justify-between text-base'>
+              <span className='flex items-center gap-2'>
+                <ShoppingCart size={18} />
+                Current Order
+              </span>
+              <Badge variant='outline' className='text-xs'>
+                {orderDetails.type
+                  ? orderDetails.type === 'dine-in'
+                    ? 'Dine-In'
+                    : 'Takeaway'
+                  : 'New Order'}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+
+          <CardContent className='flex-1 flex flex-col gap-3'>
+            {/* Cart items */}
+            <div className='flex-1 border rounded-md bg-background'>
+              {cart.length === 0 ? (
+                <div className='h-full flex flex-col items-center justify-center text-sm text-muted-foreground p-4'>
+                  <ShoppingCart className='mb-2' size={20} />
+                  No items added yet. Tap items on the left to add to cart.
+                </div>
+              ) : (
+                <ScrollArea className='h-64'>
+                  <div className='divide-y'>
+                    {cart.map((item) => (
+                      <div
+                        key={item.id}
+                        className='flex items-center justify-between gap-2 py-2 px-2'
+                      >
+                        <div className='flex-1 min-w-0'>
+                          <p className='text-sm font-medium truncate'>
+                            {item.name}
+                          </p>
+                          <p className='text-xs text-muted-foreground'>
+                            {settings.currencySymbol}
+                            {item.price.toFixed(2)} x {item.quantity}
+                          </p>
+                        </div>
+                        <div className='flex items-center gap-2'>
+                          <div className='flex items-center border rounded-full'>
+                            <button
+                              className='w-7 h-7 flex items-center justify-center text-xs'
+                              onClick={() =>
+                                updateQuantity(item.id, false)
+                              }
+                            >
+                              <Minus size={14} />
+                            </button>
+                            <span className='w-7 text-center text-xs'>
+                              {item.quantity}
+                            </span>
+                            <button
+                              className='w-7 h-7 flex items-center justify-center text-xs'
+                              onClick={() => updateQuantity(item.id, true)}
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
+                          <Button
+                            variant='ghost'
+                            size='icon'
+                            onClick={() => removeFromCart(item.id)}
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </div>
+
+            {/* Summary */}
+            <div className='space-y-2 text-sm'>
+              <div className='flex justify-between'>
+                <span>Subtotal</span>
+                <span>
+                  {settings.currencySymbol}
+                  {subtotal.toFixed(2)}
+                </span>
+              </div>
+
+              {taxCalculation.taxes.map((tax, idx) => (
+                <div
+                  key={idx}
+                  className='flex justify-between text-sm text-muted-foreground'
+                >
+                  <span>
+                    {tax.name} ({tax.rate}%)
+                  </span>
+                  <span>
+                    {settings.currencySymbol}
+                    {tax.amount.toFixed(2)}
+                  </span>
+                </div>
+              ))}
+
+              <Separator />
+
+              <div className='flex justify-between font-semibold text-lg text-primary'>
+                <span>Total</span>
+                <span>
+                  {settings.currencySymbol}
+                  {total.toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            {orderDetails.customerName && (
+              <div className='bg-muted/50 p-2 rounded text-sm'>
+                <p className='font-medium'>{orderDetails.customerName}</p>
+                <p className='text-muted-foreground'>
+                  {orderDetails.customerPhone}
+                </p>
+              </div>
+            )}
+
+            {/* Payment buttons */}
+            {cart.length > 0 && (
+              <div className='space-y-2'>
+                <div className='grid grid-cols-4 gap-2'>
+                  <Button
+                    variant='outline'
+                    className='h-12 flex-col gap-1 border-green-200 text-green-700 hover:bg-green-50'
+                    onClick={() => handlePaymentMethodSelect('cash')}
+                  >
+                    <Banknote size={18} />
+                    <span className='text-xs'>Cash</span>
+                  </Button>
+
+                  <Button
+                    variant='outline'
+                    className='h-12 flex-col gap-1 border-blue-200 text-blue-700 hover:bg-blue-50'
+                    onClick={() => handlePaymentMethodSelect('card')}
+                  >
+                    <CreditCard size={18} />
+                    <span className='text-xs'>Card</span>
+                  </Button>
+
+                  <Button
+                    variant='outline'
+                    className='h-12 flex-col gap-1 border-purple-200 text-purple-700 hover:bg-purple-50'
+                    onClick={() => handlePaymentMethodSelect('upi')}
+                  >
+                    <Smartphone size={18} />
+                    <span className='text-xs'>UPI</span>
+                  </Button>
+
+                  <Button
+                    variant='outline'
+                    className='h-12 flex-col gap-1 border-orange-200 text-orange-700 hover:bg-orange-50'
+                    onClick={() => handlePaymentMethodSelect('split')}
+                  >
+                    <FileText size={18} />
+                    <span className='text-xs'>Split</span>
+                  </Button>
+                </div>
+
+                <Button
+                  className='w-full h-12 bg-primary hover:bg-primary/90'
+                  onClick={() => {
+                    if (!orderDetails.customerName) {
+                      setShowCustomerDetailsDialog(true);
+                    } else {
+                      setShowPaymentDialog(true);
+                    }
+                  }}
+                >
+                  <Users className='mr-2' size={18} />
+                  Proceed to Checkout
+                </Button>
+              </div>
+            )}
+
+            {cart.length === 0 && (
+              <Button
+                className='w-full h-12'
+                variant='outline'
+                onClick={startNewOrder}
+              >
+                <TableIcon className='mr-2' size={18} />
+                New Order
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ORDER TYPE DIALOG */}
+      <Dialog
+        open={showOrderTypeDialog}
+        onOpenChange={setShowOrderTypeDialog}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select Order Type</DialogTitle>
+            <DialogDescription>
+              Choose whether this is a dine-in or takeaway order.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className='grid gap-4 py-4'>
+            <Button
+              className='h-20 flex-col gap-2'
+              variant='outline'
+              onClick={() => handleOrderTypeSelect('dine-in')}
+            >
+              <TableIcon size={24} />
+              <p className='font-medium'>Dine-In</p>
+            </Button>
+
+            <Button
+              className='h-20 flex-col gap-2'
+              variant='outline'
+              onClick={() => handleOrderTypeSelect('takeaway')}
+            >
+              <ShoppingBag size={24} />
+              <p className='font-medium'>Takeaway</p>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* CUSTOMER DETAILS DIALOG */}
+      <Dialog
+        open={showCustomerDetailsDialog}
+        onOpenChange={setShowCustomerDetailsDialog}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Customer Details</DialogTitle>
+          </DialogHeader>
+
+          <div className='space-y-4 py-4'>
+            {orderDetails.type === 'dine-in' && (
+              <div className='space-y-2'>
+                <label className='text-sm font-medium'>Select Table</label>
+
+                <div className='grid grid-cols-3 gap-2 max-h-40 overflow-y-auto'>
+                  {availableTables.map((table) => (
+                    <Button
+                      key={table.id}
+                      variant={
+                        orderDetails.tableNumber === `Table ${table.number}`
+                          ? 'default'
+                          : 'outline'
+                      }
+                      disabled={table.isOccupied}
+                      onClick={() => handleTableSelect(table.id)}
+                      className={`h-12 text-xs ${
+                        table.status === 'occupied'
+                          ? 'border-red-300 text-red-700'
+                          : table.status === 'reserved'
+                          ? 'border-yellow-300 text-yellow-700'
+                          : 'border-green-300 text-green-700'
+                      }`}
+                    >
+                      <div className='flex flex-col items-center'>
+                        <span>{table.name}</span>
+                        <span className='text-[10px] opacity-75'>
+                          {table.statusDisplay}
+                        </span>
+                      </div>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className='space-y-2'>
+              <label className='text-sm font-medium'>
+                Customer Name (Optional)
+              </label>
+              <Input
+                placeholder='Enter name'
+                value={orderDetails.customerName}
+                onChange={(e) =>
+                  setOrderDetails((p) => ({
+                    ...p,
+                    customerName: e.target.value,
+                  }))
+                }
+              />
+            </div>
+
+            <div className='space-y-2'>
+              <label className='text-sm font-medium'>
+                Phone Number (Optional)
+              </label>
+              <Input
+                type='tel'
+                placeholder='Enter phone number'
+                value={orderDetails.customerPhone}
+                onChange={(e) =>
+                  setOrderDetails((p) => ({
+                    ...p,
+                    customerPhone: e.target.value,
+                  }))
+                }
+              />
+            </div>
+
+            {orderDetails.customerPhone &&
+              !customers.find(
+                (c) => c.phone === orderDetails.customerPhone
+              ) && (
+                <div className='space-y-2'>
+                  <label className='text-sm font-medium'>
+                    Referral Code
+                  </label>
+                  <Input
+                    placeholder='Optional referral code'
+                    value={orderDetails.referralCode || ''}
+                    onChange={(e) =>
+                      setOrderDetails((p) => ({
+                        ...p,
+                        referralCode: e.target.value.toUpperCase(),
+                      }))
+                    }
+                  />
+
+                  <p className='text-xs text-muted-foreground'>
+                    New customer? Enter a referral code for 100 bonus
+                    points.
+                  </p>
+                </div>
+              )}
+
+            <div className='flex gap-2 pt-4'>
+              <Button
+                variant='outline'
+                className='flex-1'
+                onClick={() => setShowCustomerDetailsDialog(false)}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                className='flex-1'
+                onClick={() => setShowCustomerDetailsDialog(false)}
+              >
+                Continue
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* PAYMENT DIALOG (kept for future, not strictly needed now) */}
+      <Dialog
+        open={showPaymentDialog}
+        onOpenChange={setShowPaymentDialog}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select Payment Method</DialogTitle>
+          </DialogHeader>
+          {/* You can mirror the four payment buttons here if you want a modal-based flow */}
+        </DialogContent>
+      </Dialog>
+
+      {/* INVOICE POPUP */}
+      <Dialog
+        open={showInvoiceDialog}
+        onOpenChange={setShowInvoiceDialog}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Order Complete — {settings.currencySymbol}
+              {total.toFixed(2)}
+            </DialogTitle>
+            <DialogDescription>
+              Choose how to handle the invoice.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className='space-y-4 py-4'>
+            <div className='bg-green-50 p-4 rounded-lg border border-green-200'>
+              <p className='text-green-800 font-medium'>
+                Payment Successful!
+              </p>
+              <p className='text-sm text-green-600'>
+                Paid via {orderDetails.paymentMethod?.toUpperCase()}
+              </p>
+            </div>
+
+            <Button
+              className='w-full h-12 gap-2'
+              onClick={() => {
+                alert('Printing invoice...');
+              }}
+            >
+              <Printer size={18} />
+              Print Invoice
+            </Button>
+
+            <div className='grid grid-cols-2 gap-2'>
+              <Button
+                variant='outline'
+                className='h-12 gap-2 border-green-200 text-green-700 hover:bg-green-50'
+                onClick={downloadExcel}
+              >
+                <FileSpreadsheet size={18} />
+                Excel
+              </Button>
+
+              <Button
+                variant='outline'
+                className='h-12 gap-2 border-red-200 text-red-700 hover:bg-red-50'
+                onClick={downloadPDF}
+              >
+                <Download size={18} />
+                PDF
+              </Button>
+            </div>
+
+            {orderDetails.customerPhone && (
+              <Button
+                variant='outline'
+                className='w-full h-12 gap-2'
+                onClick={sendWhatsAppInvoice}
+              >
+                <MessageCircle size={18} />
+                WhatsApp Invoice
+              </Button>
+            )}
+
+            <Button
+              variant='outline'
+              className='w-full h-12 gap-2'
+              onClick={resetAfterInvoice}
+            >
+              <FileText size={18} />
+              Save & Continue
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }
