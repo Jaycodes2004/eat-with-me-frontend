@@ -21,8 +21,7 @@ import {
 } from './ui/select';
 import { useAppContext, countryCurrencyMap } from '../contexts/AppContext';
 import apiClient from '../lib/api';
-import { fetchPlans, formatPlansForDisplay } from '../lib/adminPlansApi/adminPlansApi';
-import { toast } from 'sonner';
+import { fetchPlans, formatPlansForDisplay } from '../lib/adminPlansApi.ts/adminPlansApi';import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
