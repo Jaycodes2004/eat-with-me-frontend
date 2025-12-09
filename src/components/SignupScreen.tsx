@@ -302,6 +302,15 @@ export function SignupScreen({ onSignup, onBackToLogin }: SignupScreenProps) {
 			if (!restaurantId) {
 				throw new Error('Restaurant ID missing in response.');
 			}
+			      // Store restaurant details in localStorage for Settings page
+      localStorage.setItem('restaurantId', restaurantId);
+      localStorage.setItem('restaurantName', formData.restaurantName);
+      localStorage.setItem('businessEmail', formData.email);
+      localStorage.setItem('businessPhone', formData.phone);
+      localStorage.setItem('businessAddress', formData.address);
+      localStorage.setItem('country', formData.country);
+      localStorage.setItem('selectedPlan', formData.selectedPlan);
+
 
 			updateSettings({
 				restaurantName: formData.restaurantName,
