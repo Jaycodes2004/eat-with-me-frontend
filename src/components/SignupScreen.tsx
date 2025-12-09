@@ -87,57 +87,98 @@ export function SignupScreen({ onSignup, onBackToLogin }: SignupScreenProps) {
 
 	// Fetch plans from backend so signup shows dynamic admin-configured plans
 	useEffect(() => {
-		// Only use static plans for signup, do not fetch from backend
-		setPlans([
-			{
-				id: 'starter',
-				name: 'Starter',
-				description: 'Free starter plan for small restaurants',
-				monthlyPrice: 0,
-				currency: '$',
-				period: 'per month',
-				features: ['Basic POS', 'Up to 100 orders/month', 'Email support'],
-				popular: false,
-				color: 'from-gray-400 to-gray-600',
-				allowedModules: ['POS', 'Reports'],
-			},
-			{
-				id: 'pro',
-				name: 'Pro',
-				description: 'Advanced plan for growing businesses',
-				monthlyPrice: 49,
-				currency: '$',
-				period: 'per month',
-				features: [
-					'All Starter features',
-					'Unlimited orders',
-					'Inventory & Staff Management',
-					'Priority support',
-				],
-				popular: true,
-				color: 'from-purple-500 to-pink-500',
-				allowedModules: ['POS', 'Reports', 'Inventory', 'Staff', 'AI Insights'],
-			},
-			{
-				id: 'enterprise',
-				name: 'Enterprise',
-				description: 'Custom plan for large chains',
-				monthlyPrice: 199,
-				currency: '$',
-				period: 'per month',
-				features: [
-					'All Pro features',
-					'Custom integrations',
-					'Dedicated account manager',
-					'24/7 support',
-				],
-				popular: false,
-				color: 'from-yellow-500 to-orange-500',
-				allowedModules: ['All modules'],
-			},
-		]);
-		return () => {};
-	}, []);
+		    const loadPlans = async () => {
+      try {
+        const fetchedPlans = await fetchPlans();
+        const formattedPlans = formatPlansForDisplay(fetchedPlans);
+        if (formattedPlans && formattedPlans.length > 0) {
+          setPlans(formattedPlans);
+        } else {
+          // Fallback to hardcoded plans if API returns empty
+          setPlans([
+            {
+              id: 'starter',
+              name: 'Starter',
+              description: 'Free starter plan for small restaurants',
+              monthlyPrice: 0,
+              currency: '$',
+              period: 'per month',
+              features: ['Basic POS', 'Up to 100 orders/month', 'Email support'],
+              popular: false,
+              color: 'from-gray-400 to-gray-600',
+              allowedModules: ['POS', 'Reports'],
+            },
+            {
+              id: 'pro',
+              name: 'Pro',
+              description: 'Advanced plan for growing businesses',
+              monthlyPrice: 49,
+              currency: '$',
+              period: 'per month',
+              features: ['All Starter features', 'Unlimited orders', 'Inventory & Staff Management', 'Priority support'],
+              popular: true,
+              color: 'from-purple-500 to-pink-500',
+              allowedModules: ['POS', 'Reports', 'Inventory', 'Staff', 'AI Insights'],
+            },
+            {
+              id: 'enterprise',
+              name: 'Enterprise',
+              description: 'Custom plan for large chains',
+              monthlyPrice: 199,
+              currency: '$',
+              period: 'per month',
+              features: ['All Pro features', 'Custom integrations', 'Dedicated account manager', '24/7 support'],
+              popular: false,
+              color: 'from-yellow-500 to-orange-500',
+              allowedModules: ['All modules'],
+            },
+          ]);
+        }
+      } catch (error) {
+        console.error('Error fetching plans:', error);
+        // Use fallback plans on error
+        setPlans([
+          {
+            id: 'starter',
+            name: 'Starter',
+            description: 'Free starter plan for small restaurants',
+            monthlyPrice: 0,
+            currency: '$',
+            period: 'per month',
+            features: ['Basic POS', 'Up to 100 orders/month', 'Email support'],
+            popular: false,
+            color: 'from-gray-400 to-gray-600',
+            allowedModules: ['POS', 'Reports'],
+          },
+          {
+            id: 'pro',
+            name: 'Pro',
+            description: 'Advanced plan for growing businesses',
+            monthlyPrice: 49,
+            currency: '$',
+            period: 'per month',
+            features: ['All Starter features', 'Unlimited orders', 'Inventory & Staff Management', 'Priority support'],
+            popular: true,
+            color: 'from-purple-500 to-pink-500',
+            allowedModules: ['POS', 'Reports', 'Inventory', 'Staff', 'AI Insights'],
+          },
+          {
+            id: 'enterprise',
+            name: 'Enterprise',
+            description: 'Custom plan for large chains',
+            monthlyPrice: 199,
+            currency: '$',
+            period: 'per month',
+            features: ['All Pro features', 'Custom integrations', 'Dedicated account manager', '24/7 support'],
+            popular: false,
+            color: 'from-yellow-500 to-orange-500',
+            allowedModules: ['All modules'],
+          },
+        ]);
+      }
+    };
+    loadPlans();
+}, []);
 
 	const handleInputChange = (field: string, value: string) => {
 		setError(null);
