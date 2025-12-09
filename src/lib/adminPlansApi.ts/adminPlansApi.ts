@@ -1,5 +1,4 @@
-import apiClient from './api';
-
+import apiClient from '../api';
 // Fetch all plans from admin backend
 export const fetchPlans = async () => {
   try {
