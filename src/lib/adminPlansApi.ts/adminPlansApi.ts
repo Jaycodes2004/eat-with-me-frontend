@@ -1,39 +1,83 @@
 import apiClient from '../api';
-// Fetch all plans from admin backend
-export const fetchPlans = async () => {
+
+interface AdminPlanFeature {
+  name: string;
+}
+
+interface AdminPlan {
+  id: string;
+  name: string;
+  description?: string | null;
+  currency?: string;
+  monthlyPrice?: number;
+  yearlyPrice?: number | null;
+  posType?: string;
+  billingCycle?: string | null;
+  features?: AdminPlanFeature[];
+  active?: boolean;
+}
+
+interface AdminPlansResponse {
+  success: boolean;
+  count: number;
+  plans: AdminPlan[];
+}
+
+// Fetch all active restaurant plans from admin backend
+export const fetchPlans = async (): Promise<AdminPlan[]> => {
   try {
-    const response = await apiClient.get('/admin/plans');
-    return response.data || [];
+    const response = await apiClient.get<AdminPlansResponse>(
+      '/admin/pricing-plans',
+      {
+        params: {
+          posType: 'restaurant',
+          active: true,
+        },
+      }
+    );
+
+    // admin backend returns { success, count, plans }
+    return response.data?.plans || [];
   } catch (error) {
     console.error('Error fetching plans:', error);
     return [];
   }
 };
 
-// Fetch a specific plan by ID
-export const fetchPlanById = async (planId: string) => {
+// Fetch a specific plan by ID (if needed)
+export const fetchPlanById = async (
+  planId: string
+): Promise<AdminPlan | null> => {
   try {
-    const response = await apiClient.get(`/admin/plans/${planId}`);
-    return response.data;
+    const response = await apiClient.get<{ success: boolean; plan: AdminPlan }>(
+      `/admin/pricing-plans/${planId}`
+    );
+    return response.data?.plan || null;
   } catch (error) {
     console.error(`Error fetching plan ${planId}:`, error);
     return null;
   }
 };
 
-// Format plans for display
-export const formatPlansForDisplay = (plans: any[]) => {
+// Format plans for display in SignupScreen
+export const formatPlansForDisplay = (plans: AdminPlan[]) => {
   return plans.map((plan) => ({
-    id: plan._id || plan.id,
+    id: plan.id,
     name: plan.name,
     description: plan.description || '',
-    monthlyPrice: plan.price || 0,
-    currency: plan.currency || '$',
-    period: plan.period || 'per month',
-    features: plan.features || [],
-    featureHighlights: plan.featureHighlights || [],
-    allowedModules: plan.allowedModules || [],
-    popular: plan.popular || false,
-    color: plan.color || 'from-gray-400 to-gray-600',
+    monthlyPrice:
+      typeof plan.monthlyPrice === 'number' ? plan.monthlyPrice : 0,
+    currency: plan.currency || '₹',
+    // fall back to billingCycle; your SignupScreen already uses this pattern
+    period: plan.billingCycle
+      ? plan.billingCycle.toLowerCase()
+      : 'per month',
+    features:
+      plan.features?.map((f) => f.name) ??
+      [],
+    featureHighlights: [], // can be derived later if you want
+    allowedModules: [], // hook this up later from features
+    popular: false,
+    color: 'from-emerald-500 to-emerald-700',
   }));
 };

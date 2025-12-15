@@ -21,7 +21,12 @@ import {
 } from './ui/select';
 import { useAppContext, countryCurrencyMap } from '../contexts/AppContext';
 import apiClient from '../lib/api';
-import { fetchPlans, formatPlansForDisplay } from '../lib/adminPlansApi.ts/adminPlansApi';import { toast } from 'sonner';
+import {
+	fetchPlans,
+	formatPlansForDisplay,
+} from '../lib/adminPlansApi.ts/adminPlansApi';
+
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
@@ -84,100 +89,36 @@ export function SignupScreen({ onSignup, onBackToLogin }: SignupScreenProps) {
 
 	const [plans, setPlans] = useState<Array<any>>([]);
 
-	// Fetch plans from backend so signup shows dynamic admin-configured plans
+	const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+	const [isPlansLoading, setIsPlansLoading] = useState(false);
+	const [plansError, setPlansError] = useState<string | null>(null);
+
 	useEffect(() => {
-		    const loadPlans = async () => {
-      try {
-        const fetchedPlans = await fetchPlans();
-        const formattedPlans = formatPlansForDisplay(fetchedPlans);
-        if (formattedPlans && formattedPlans.length > 0) {
-          setPlans(formattedPlans);
-        } else {
-          // Fallback to hardcoded plans if API returns empty
-          setPlans([
-            {
-              id: 'starter',
-              name: 'Starter',
-              description: 'Free starter plan for small restaurants',
-              monthlyPrice: 0,
-              currency: '$',
-              period: 'per month',
-              features: ['Basic POS', 'Up to 100 orders/month', 'Email support'],
-              popular: false,
-              color: 'from-gray-400 to-gray-600',
-              allowedModules: ['POS', 'Reports'],
-            },
-            {
-              id: 'pro',
-              name: 'Pro',
-              description: 'Advanced plan for growing businesses',
-              monthlyPrice: 49,
-              currency: '$',
-              period: 'per month',
-              features: ['All Starter features', 'Unlimited orders', 'Inventory & Staff Management', 'Priority support'],
-              popular: true,
-              color: 'from-purple-500 to-pink-500',
-              allowedModules: ['POS', 'Reports', 'Inventory', 'Staff', 'AI Insights'],
-            },
-            {
-              id: 'enterprise',
-              name: 'Enterprise',
-              description: 'Custom plan for large chains',
-              monthlyPrice: 199,
-              currency: '$',
-              period: 'per month',
-              features: ['All Pro features', 'Custom integrations', 'Dedicated account manager', '24/7 support'],
-              popular: false,
-              color: 'from-yellow-500 to-orange-500',
-              allowedModules: ['All modules'],
-            },
-          ]);
-        }
-      } catch (error) {
-        console.error('Error fetching plans:', error);
-        // Use fallback plans on error
-        setPlans([
-          {
-            id: 'starter',
-            name: 'Starter',
-            description: 'Free starter plan for small restaurants',
-            monthlyPrice: 0,
-            currency: '$',
-            period: 'per month',
-            features: ['Basic POS', 'Up to 100 orders/month', 'Email support'],
-            popular: false,
-            color: 'from-gray-400 to-gray-600',
-            allowedModules: ['POS', 'Reports'],
-          },
-          {
-            id: 'pro',
-            name: 'Pro',
-            description: 'Advanced plan for growing businesses',
-            monthlyPrice: 49,
-            currency: '$',
-            period: 'per month',
-            features: ['All Starter features', 'Unlimited orders', 'Inventory & Staff Management', 'Priority support'],
-            popular: true,
-            color: 'from-purple-500 to-pink-500',
-            allowedModules: ['POS', 'Reports', 'Inventory', 'Staff', 'AI Insights'],
-          },
-          {
-            id: 'enterprise',
-            name: 'Enterprise',
-            description: 'Custom plan for large chains',
-            monthlyPrice: 199,
-            currency: '$',
-            period: 'per month',
-            features: ['All Pro features', 'Custom integrations', 'Dedicated account manager', '24/7 support'],
-            popular: false,
-            color: 'from-yellow-500 to-orange-500',
-            allowedModules: ['All modules'],
-          },
-        ]);
-      }
-    };
-    loadPlans();
-}, []);
+		const loadPlans = async () => {
+			try {
+				setIsPlansLoading(true);
+				setPlansError(null);
+
+				// Fetch restaurant plans from admin backend
+				const rawPlans = await fetchPlans();
+				const uiPlans = formatPlansForDisplay(rawPlans);
+
+				setPlans(uiPlans);
+
+				// Auto-select first plan if none selected
+				if (uiPlans.length > 0 && !selectedPlanId) {
+					setSelectedPlanId(uiPlans[0].id);
+				}
+			} catch (err: any) {
+				console.error('Error loading plans in signup:', err);
+				setPlansError('Failed to load pricing plans. Please try again.');
+			} finally {
+				setIsPlansLoading(false);
+			}
+		};
+
+		loadPlans();
+	}, [selectedPlanId]);
 
 	const handleInputChange = (field: string, value: string) => {
 		setError(null);
@@ -276,6 +217,11 @@ export function SignupScreen({ onSignup, onBackToLogin }: SignupScreenProps) {
 			return;
 		}
 
+		if (!formData.selectedPlan) {
+			setError('Please select a pricing plan.');
+			return;
+		}
+
 		setIsLoading(true);
 		setError(null);
 
@@ -293,7 +239,11 @@ export function SignupScreen({ onSignup, onBackToLogin }: SignupScreenProps) {
 				useRedis: false,
 				phone: formData.phone,
 				address: formData.address,
-				plan: formData.selectedPlan,
+
+				// plan binding
+				plan: formData.selectedPlan, // keep existing field if backend uses it
+				posType: 'restaurant', // NEW: tell backend which POS this is
+				planId: formData.selectedPlan, // NEW: explicit plan id field for backend
 			});
 
 			const { restaurantId } = response.data;
@@ -301,15 +251,15 @@ export function SignupScreen({ onSignup, onBackToLogin }: SignupScreenProps) {
 			if (!restaurantId) {
 				throw new Error('Restaurant ID missing in response.');
 			}
-			      // Store restaurant details in localStorage for Settings page
-      localStorage.setItem('restaurantId', restaurantId);
-      localStorage.setItem('restaurantName', formData.restaurantName);
-      localStorage.setItem('businessEmail', formData.email);
-      localStorage.setItem('businessPhone', formData.phone);
-      localStorage.setItem('businessAddress', formData.address);
-      localStorage.setItem('country', formData.country);
-      localStorage.setItem('selectedPlan', formData.selectedPlan);
 
+			// Store restaurant details in localStorage for Settings page
+			localStorage.setItem('restaurantId', restaurantId);
+			localStorage.setItem('restaurantName', formData.restaurantName);
+			localStorage.setItem('businessEmail', formData.email);
+			localStorage.setItem('businessPhone', formData.phone);
+			localStorage.setItem('businessAddress', formData.address);
+			localStorage.setItem('country', formData.country);
+			localStorage.setItem('selectedPlan', formData.selectedPlan);
 
 			updateSettings({
 				restaurantName: formData.restaurantName,
@@ -326,7 +276,6 @@ export function SignupScreen({ onSignup, onBackToLogin }: SignupScreenProps) {
 			setCreatedRestaurantId(restaurantId);
 			setShowIdPopup(true);
 			toast.success('Restaurant created successfully!');
-			// Delay onSignup until popup is closed
 		} catch (err) {
 			const axiosError = err as AxiosError<{ message?: string }>;
 			const fallbackMessage = 'Failed to create restaurant. Please try again.';
@@ -776,16 +725,17 @@ export function SignupScreen({ onSignup, onBackToLogin }: SignupScreenProps) {
 														</div>
 
 														<div className='flex-1'>
-															<div className='flex items-center gap-2 mb-2'>
+															<div className='flex items-center justify-between gap-2 mb-2'>
 																<h3 className='font-semibold text-lg'>
 																	{plan.name}
 																</h3>
+
 																<div className='text-right'>
 																	{/* price may come from different shapes depending on backend */}
 																	<p className='font-bold text-xl'>
 																		{plan.price ??
 																			(typeof plan.monthlyPrice === 'number'
-																				? `${plan.currency || '$'}${
+																				? `${plan.currency || '₹'}${
 																						plan.monthlyPrice
 																				  }`
 																				: 'Contact')}
@@ -815,6 +765,7 @@ export function SignupScreen({ onSignup, onBackToLogin }: SignupScreenProps) {
 																			</div>
 																		)
 																	)}
+
 																{(!Array.isArray(plan.features) ||
 																	plan.features.length === 0) &&
 																	Array.isArray(plan.featureHighlights) &&
@@ -828,6 +779,7 @@ export function SignupScreen({ onSignup, onBackToLogin }: SignupScreenProps) {
 																			</div>
 																		)
 																	)}
+
 																{(!Array.isArray(plan.features) ||
 																	plan.features.length === 0) &&
 																	!Array.isArray(plan.featureHighlights) &&
