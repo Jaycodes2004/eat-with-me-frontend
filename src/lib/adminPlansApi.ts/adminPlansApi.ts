@@ -1,4 +1,4 @@
-import apiClient from '../api';
+import adminApiClient from '../adminApiClient';
 
 interface AdminPlanFeature {
   name: string;
@@ -26,7 +26,7 @@ interface AdminPlansResponse {
 // Fetch all active restaurant plans from admin backend
 export const fetchPlans = async (): Promise<AdminPlan[]> => {
   try {
-    const response = await apiClient.get<AdminPlansResponse>(
+    const response = await adminApiClient.get<AdminPlansResponse>(
       '/admin/pricing-plans',
       {
         params: {
@@ -49,7 +49,7 @@ export const fetchPlanById = async (
   planId: string
 ): Promise<AdminPlan | null> => {
   try {
-    const response = await apiClient.get<{ success: boolean; plan: AdminPlan }>(
+    const response = await adminApiClient.get<{ success: boolean; plan: AdminPlan }>(
       `/admin/pricing-plans/${planId}`
     );
     return response.data?.plan || null;
@@ -68,15 +68,12 @@ export const formatPlansForDisplay = (plans: AdminPlan[]) => {
     monthlyPrice:
       typeof plan.monthlyPrice === 'number' ? plan.monthlyPrice : 0,
     currency: plan.currency || '₹',
-    // fall back to billingCycle; your SignupScreen already uses this pattern
     period: plan.billingCycle
       ? plan.billingCycle.toLowerCase()
       : 'per month',
-    features:
-      plan.features?.map((f) => f.name) ??
-      [],
-    featureHighlights: [], // can be derived later if you want
-    allowedModules: [], // hook this up later from features
+    features: plan.features?.map((f) => f.name) ?? [],
+    featureHighlights: [],
+    allowedModules: [],
     popular: false,
     color: 'from-emerald-500 to-emerald-700',
   }));
