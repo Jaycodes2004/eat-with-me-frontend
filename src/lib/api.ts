@@ -54,8 +54,7 @@
 import axios from 'axios';
 
 const apiBaseUrl =
-  import.meta.env?.VITE_API_URL || "/api";   // SAFE fallback
-
+  import.meta.env?.VITE_API_URL || 'https://eatwithme.easytomanage.xyz';
 const apiClient = axios.create({
   baseURL: apiBaseUrl,   // "/api" on Vercel
 });
