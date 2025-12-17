@@ -27,7 +27,7 @@ interface AdminPlansResponse {
 export const fetchPlans = async (): Promise<AdminPlan[]> => {
   try {
     const response = await adminApiClient.get<AdminPlansResponse>(
-      '/admin/pricing-plans',
+      'api/admin/pricing-plans',
       {
         params: {
           posType: 'restaurant',
