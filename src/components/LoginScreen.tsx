@@ -118,7 +118,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
 
 		try {
 			const response = await apiClient.post<LoginResponsePayload>(
-				'/auth/login',
+				'/login',
 				{ email, password, restaurantId },
 				{
 					headers: {
