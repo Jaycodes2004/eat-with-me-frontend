@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppContext, type LoyaltyReward, type LoyaltyRule } from '../contexts/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -30,11 +30,27 @@ import {
   Sparkles,
   Percent
 } from 'lucide-react';
+type NewRewardState = {
+  title: string;
+  description: string;
+  pointsRequired: number;
+  type: 'discount' | 'free_item' | 'cashback';
+  value: number;
+  maxRedemptions: number;
+};
 
-
+type NewRuleState = {
+  name: string;
+  type: 'earn' | 'bonus';
+  condition: string;
+  pointsPerRupee: number;
+  bonusPoints: number;
+  minOrderValue: number;
+};
 
 export function LoyaltyProgram() {
   const {
+    settings,
     customers,
     loyaltyRewards,
     loyaltyRules,
@@ -55,22 +71,50 @@ export function LoyaltyProgram() {
   const [activeTab, setActiveTab] = useState('members');
   const [isAddRewardDialogOpen, setIsAddRewardDialogOpen] = useState(false);
   const [isAddRuleDialogOpen, setIsAddRuleDialogOpen] = useState(false);
-  const [newReward, setNewReward] = useState({
+  const [newReward, setNewReward] = useState<NewRewardState>({
     title: '',
     description: '',
     pointsRequired: 100,
-    type: 'discount' as const,
+    type: 'discount',
     value: 10,
     maxRedemptions: 0
   });
-  const [newRule, setNewRule] = useState({
+  const [newRule, setNewRule] = useState<NewRuleState>({
     name: '',
-    type: 'earn' as const,
+    type: 'earn',
     condition: '',
     pointsPerRupee: 1,
     bonusPoints: 50,
     minOrderValue: 500
   });
+
+  const currencySymbol = settings?.currencySymbol ?? '₹';
+
+  const [needsScroll, setNeedsScroll] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      setNeedsScroll(el.scrollHeight > el.clientHeight + 4);
+    };
+
+    measure();
+
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => measure())
+      : null;
+
+    if (resizeObserver) resizeObserver.observe(el);
+    window.addEventListener('resize', measure);
+
+    return () => {
+      window.removeEventListener('resize', measure);
+      resizeObserver?.disconnect();
+    };
+  }, []);
 
   // Use customers as loyalty members (unified system)
   const members = customers;
@@ -157,7 +201,7 @@ export function LoyaltyProgram() {
   const averagePointsPerMember = totalMembers > 0 ? Math.round(totalPointsIssued / totalMembers) : 0;
 
   return (
-    <div className="p-4 max-w-7xl mx-auto space-y-6">
+    <div ref={containerRef} className="p-4 max-w-7xl mx-auto space-y-6 h-full overflow-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="flex items-center gap-2">
@@ -282,7 +326,7 @@ export function LoyaltyProgram() {
                       <div className="text-xs text-muted-foreground">Points</div>
                     </div>
                     <div className="text-center">
-                      <div className="font-semibold">₹{(member.totalSpent || 0).toLocaleString()}</div>
+                      <div className="font-semibold">{currencySymbol}{(member.totalSpent || 0).toLocaleString()}</div>
                       <div className="text-xs text-muted-foreground">Total Spent</div>
                     </div>
                     <div className="text-center">
@@ -295,7 +339,7 @@ export function LoyaltyProgram() {
                     {member.lastVisit && <div>Last visit: {new Date(member.lastVisit).toLocaleDateString()}</div>}
                     {(member.referralCount || 0) > 0 && (
                       <div className="text-green-600">
-                        Referred: {member.referralCount} customer{member.referralCount > 1 ? 's' : ''}
+                        Referred: {member.referralCount ?? 0} customer{(member.referralCount ?? 0) > 1 ? 's' : ''}
                       </div>
                     )}
                     {member.referredBy && (
@@ -354,7 +398,7 @@ export function LoyaltyProgram() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="type">Reward Type *</Label>
-                    <Select value={newReward.type} onValueChange={(value) => setNewReward({...newReward, type: value as any})}>
+                    <Select value={newReward.type} onValueChange={(value: NewRewardState['type']) => setNewReward({...newReward, type: value})}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
@@ -382,7 +426,7 @@ export function LoyaltyProgram() {
                       type="number"
                       value={newReward.value}
                       onChange={(e) => setNewReward({...newReward, value: parseFloat(e.target.value) || 10})}
-                      placeholder={newReward.type === 'discount' ? '10 (%)' : '150 (₹)'}
+                      placeholder={newReward.type === 'discount' ? '10 (%)' : `150 (${currencySymbol})`}
                     />
                   </div>
                   <div className="space-y-2">
@@ -440,7 +484,7 @@ export function LoyaltyProgram() {
                     </div>
                     <div className="text-center">
                       <div className="font-semibold">
-                        {reward.type === 'discount' ? `${reward.value}%` : `₹${reward.value}`}
+                        {reward.type === 'discount' ? `${reward.value}%` : `${currencySymbol}${reward.value}`}
                       </div>
                       <div className="text-xs text-muted-foreground">Value</div>
                     </div>
@@ -493,7 +537,7 @@ export function LoyaltyProgram() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="ruleType">Rule Type *</Label>
-                    <Select value={newRule.type} onValueChange={(value) => setNewRule({...newRule, type: value as any})}>
+                    <Select value={newRule.type} onValueChange={(value: NewRuleState['type']) => setNewRule({...newRule, type: value})}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
@@ -577,13 +621,13 @@ export function LoyaltyProgram() {
                       <p className="text-muted-foreground">{rule.condition}</p>
                       <div className="flex gap-4 mt-2 text-sm">
                         {rule.pointsPerRupee && (
-                          <span>Points per ₹: <strong>{rule.pointsPerRupee}</strong></span>
+                          <span>Points per {currencySymbol}: <strong>{rule.pointsPerRupee}</strong></span>
                         )}
                         {rule.bonusPoints && (
                           <span>Bonus Points: <strong>{rule.bonusPoints}</strong></span>
                         )}
                         {rule.minOrderValue && (
-                          <span>Min Order: <strong>₹{rule.minOrderValue}</strong></span>
+                          <span>Min Order: <strong>{currencySymbol}{rule.minOrderValue}</strong></span>
                         )}
                       </div>
                     </div>
@@ -715,6 +759,8 @@ export function LoyaltyProgram() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <div aria-hidden className='h-32 sm:h-40' />
     </div>
   );
 }

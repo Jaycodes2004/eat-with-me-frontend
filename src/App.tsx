@@ -405,8 +405,6 @@ function AppContent() {
 			{/* Dynamic Header */}
 			<DynamicHeader
 				isOnline={isOnline}
-				isAIAssistantOpen={isAIAssistantOpen}
-				onToggleAI={() => setIsAIAssistantOpen(!isAIAssistantOpen)}
 				onLogout={handleLogout}
 				onNavigate={handleNavigate}
 				onShowSearch={() => {
@@ -541,11 +539,7 @@ function AppContent() {
 						!localStorage.getItem('quickActionsUsed') &&
 						!localStorage.getItem('hasSeenOnboarding') && (
 							<div
-								className='absolute -top-12 -left-2 right-0 bg-primary text-white px-3 py-1 rounded-lg text-xs animate-bounce whitespace-nowrap'
-								style={{
-									animation:
-										'slide-up 0.3s ease-out, fadeOut 0.5s ease-out 4.5s forwards',
-								}}>
+								className='absolute -top-12 -left-2 right-0 bg-primary text-white px-3 py-1 rounded-lg text-xs animate-bounce whitespace-nowrap quick-actions-hint'>
 								Quick Actions
 								<div className='absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-primary'></div>
 							</div>
@@ -812,12 +806,7 @@ function AppContent() {
 
 			{/* Background Pattern for Indian Design Touch */}
 			<div className='fixed inset-0 pointer-events-none opacity-5 z-0'>
-				<div
-					className='absolute inset-0'
-					style={{
-						backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.05'%3E%3Ccircle cx='7' cy='7' r='1'/%3E%3Ccircle cx='53' cy='7' r='1'/%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3Ccircle cx='7' cy='53' r='1'/%3E%3Ccircle cx='53' cy='53' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-					}}
-				/>
+				<div className='absolute inset-0 bg-heritage-pattern' />
 			</div>
 		</div>
 	);

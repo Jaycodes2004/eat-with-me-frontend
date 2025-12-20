@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -9,7 +9,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useAppContext } from '../contexts/AppContext';
 import { CustomerOrderingInterface } from './CustomerOrderingInterface';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { 
   QrCode, 
   Smartphone, 
@@ -59,6 +59,8 @@ export function QROrdering() {
   const { settings, tables, orders, addOrder, updateOrder, addTable, deleteTable, currentUser } = useAppContext();
   const [activeTab, setActiveTab] = useState<'orders' | 'tables'>('orders');
   const [showQRGenerator, setShowQRGenerator] = useState(false);
+  const [needsScroll, setNeedsScroll] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   
   // Use tables from AppContext and add QR-specific properties
   const qrTables = tables.map(table => ({
@@ -105,6 +107,29 @@ export function QROrdering() {
   const [customerName, setCustomerName] = useState('');
   const [otp, setOtp] = useState('');
   const [selectedTable, setSelectedTable] = useState('T01');
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      setNeedsScroll(el.scrollHeight > el.clientHeight + 4);
+    };
+
+    measure();
+
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => measure())
+      : null;
+
+    if (resizeObserver) resizeObserver.observe(el);
+    window.addEventListener('resize', measure);
+
+    return () => {
+      window.removeEventListener('resize', measure);
+      resizeObserver?.disconnect();
+    };
+  }, []);
 
 
   const updateOrderStatus = (orderId: string, newStatus: QROrder['status']) => {
@@ -389,7 +414,7 @@ export function QROrdering() {
   }
 
   return (
-    <div className="p-4 space-y-6">
+    <div ref={containerRef} className="p-4 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
@@ -440,7 +465,7 @@ export function QROrdering() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Capacity</label>
-                  <Select value={newTable.capacity.toString()} onValueChange={(value) => setNewTable({...newTable, capacity: parseInt(value)})}>
+                  <Select value={newTable.capacity.toString()} onValueChange={(value: string) => setNewTable({...newTable, capacity: parseInt(value, 10)})}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select capacity" />
                     </SelectTrigger>
@@ -660,7 +685,7 @@ export function QROrdering() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <h4 className="font-semibold">Table {order.tableNumber}</h4>
-                            <Badge className={getStatusColor(order.status)}>
+                            <Badge className={getStatusColor(order.status as QROrder['status'])}>
                               {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                             </Badge>
                             <span className="text-sm text-muted-foreground">{order.timestamp}</span>
@@ -753,6 +778,7 @@ export function QROrdering() {
           </Card>
         </div>
       )}
+      {needsScroll && <div aria-hidden className="h-32 sm:h-40" />}
     </div>
   );
 }

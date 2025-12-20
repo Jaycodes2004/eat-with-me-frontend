@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppContext, Reservation, CreateReservationPayload } from '../contexts/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -12,7 +12,7 @@ import { Calendar } from './ui/calendar';
 import { Textarea } from './ui/textarea';
 import { Alert, AlertDescription } from './ui/alert';
 import { Progress } from './ui/progress';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { 
   CalendarDays, 
   Plus, 
@@ -77,6 +77,8 @@ export function ReservationManagement({ onNavigate, userRole }: ReservationManag
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isCreatingReservation, setIsCreatingReservation] = useState(false);
   const [activeReservationActionId, setActiveReservationActionId] = useState<string | null>(null);
+  const [needsScroll, setNeedsScroll] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   
   const [newReservation, setNewReservation] = useState<{
     customerName: string;
@@ -108,6 +110,29 @@ export function ReservationManagement({ onNavigate, userRole }: ReservationManag
       setCurrentTime(new Date());
     }, 60000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      setNeedsScroll(el.scrollHeight > el.clientHeight + 4);
+    };
+
+    measure();
+
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => measure())
+      : null;
+
+    if (resizeObserver) resizeObserver.observe(el);
+    window.addEventListener('resize', measure);
+
+    return () => {
+      window.removeEventListener('resize', measure);
+      resizeObserver?.disconnect();
+    };
   }, []);
 
   // Using reservations from context - no local state needed
@@ -295,7 +320,7 @@ export function ReservationManagement({ onNavigate, userRole }: ReservationManag
   const filteredReservations = getFilteredReservations();
 
   return (
-    <div className="space-y-6 p-6">
+    <div ref={containerRef} className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -753,6 +778,7 @@ export function ReservationManagement({ onNavigate, userRole }: ReservationManag
           </Tabs>
         </CardContent>
       </Card>
+      {needsScroll && <div aria-hidden className="h-32 sm:h-40" />}
     </div>
   );
 }

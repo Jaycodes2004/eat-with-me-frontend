@@ -6,7 +6,6 @@ import {
   Bell, 
   Wifi,
   WifiOff,
-  Bot,
   ArrowLeft,
   Search
 } from 'lucide-react';
@@ -14,8 +13,6 @@ import { useAppContext } from '../contexts/AppContext';
 
 interface DynamicHeaderProps {
   isOnline: boolean;
-  isAIAssistantOpen: boolean;
-  onToggleAI: () => void;
   onLogout: () => void;
   onNavigate: (screen: string) => void;
   showBackButton?: boolean;
@@ -25,8 +22,6 @@ interface DynamicHeaderProps {
 
 export function DynamicHeader({ 
   isOnline, 
-  isAIAssistantOpen, 
-  onToggleAI, 
   onLogout, 
   onNavigate,
   showBackButton = false,
@@ -45,9 +40,6 @@ export function DynamicHeader({
 
   const currentModuleConfig = appModules.find(m => m.id === currentModule);
   const unreadNotifications = notifications.filter(n => !n.read);
-  const onlineOrderNotifications = notifications.filter(n => 
-    n.type === 'info' && n.moduleId === 'online-orders' && !n.read
-  );
 
   return (
     <header className="bg-card border-b border-border shadow-sm px-4 py-3 flex items-center justify-between">
@@ -105,20 +97,6 @@ export function DynamicHeader({
           )}
         </Button>
 
-        {/* AI Assistant Toggle */}
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={onToggleAI}
-          className="relative"
-          title="AI Assistant"
-        >
-          <Bot size={18} />
-          {isAIAssistantOpen && (
-            <Badge className="absolute -top-1 -right-1 w-2 h-2 p-0 bg-green-500 rounded-full"></Badge>
-          )}
-        </Button>
-        
         {/* User Profile */}
         <div className="flex items-center gap-2">
           <Avatar className="w-8 h-8">

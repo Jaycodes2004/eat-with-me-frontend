@@ -133,11 +133,13 @@ export function Reports(props: ReportsProps) {
       const growth = Math.floor(Math.random() * 30) - 10; // Mock growth for now
       
       const colors = ['#1e40af', '#3b82f6', '#60a5fa', '#93c5fd', '#dbeafe', '#f1f5f9'];
+      const colorClasses = ['bg-blue-900', 'bg-blue-600', 'bg-sky-500', 'bg-sky-300', 'bg-slate-300', 'bg-slate-200'];
       
       return {
         name: category,
         value,
         color: colors[index % colors.length],
+        colorClass: colorClasses[index % colorClasses.length],
         revenue: Math.round(revenue),
         growth
       };
@@ -214,7 +216,7 @@ export function Reports(props: ReportsProps) {
   const baseAmount = totalRevenue > 0 ? totalRevenue / 1.18 : 0; // Assuming taxes are already included
   
   // Safe currency symbol with fallback
-  const safeCurrencySymbol = settings?.currencySymbol || '$';
+  const safeCurrencySymbol = settings?.currencySymbol ?? '₹';
   
   let calculatedTaxes: Array<{name: string, rate: number, amount: number}> = [];
   let totalTax = 0;
@@ -347,8 +349,7 @@ export function Reports(props: ReportsProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Sales</p>
-                <div className="flex items-center gap-1 mt-1">
-                  <DollarSign size={18} className="text-primary" />
+                <div className="flex items-center gap-1 mt-1">                  
                   <span className="text-xl font-bold text-primary">
                     {safeCurrencySymbol}{todayStats.totalSales.toLocaleString()}
                   </span>
@@ -389,7 +390,6 @@ export function Reports(props: ReportsProps) {
               <div>
                 <p className="text-sm text-muted-foreground">Avg Order</p>
                 <div className="flex items-center gap-1">
-                  <DollarSign size={16} className="text-primary" />
                   <span className="text-xl font-bold text-primary">
                     {safeCurrencySymbol}{todayStats.avgOrderValue}
                   </span>
@@ -412,7 +412,6 @@ export function Reports(props: ReportsProps) {
               <div>
                 <p className="text-sm text-muted-foreground">Taxes Collected</p>
                 <div className="flex items-center gap-1">
-                  <DollarSign size={16} className="text-primary" />
                   <span className="text-xl font-bold text-primary">
                     {safeCurrencySymbol}{todayStats.taxesCollected.toLocaleString()}
                   </span>
@@ -780,8 +779,7 @@ export function Reports(props: ReportsProps) {
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
                         <div 
-                          className="w-4 h-4 rounded-full" 
-                          style={{ backgroundColor: category.color }}
+                          className={`w-4 h-4 rounded-full ${category.colorClass || 'bg-primary'}`}
                         ></div>
                         <h4 className="font-medium">{category.name}</h4>
                       </div>
