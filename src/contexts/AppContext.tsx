@@ -1030,13 +1030,13 @@ const getDefaultTaxRules = (country: string): TaxRule[] => {
 };
 // it can fixed 
 const defaultSettings: AppSettings = {
-	restaurantName: 'Eat With Me Demo pre filled',
-	country: 'India',
-	currency: 'INR',
-	currencySymbol: '₹',
+	restaurantName: '',
+	country: '',
+	currency: '',
+	currencySymbol: '',
 	whatsappApiKey: '',
 	whatsappPhoneNumber: '',
-	taxRules: getDefaultTaxRules('India'),
+	taxRules: [],
 	defaultTaxCategory: 'food',
 	theme: 'light',
 	language: 'English',
@@ -1045,11 +1045,11 @@ const defaultSettings: AppSettings = {
 	multiLocation: false,
 	loyaltyEnabled: true,
 	loyaltyPointsPerCurrency: 1, // Default: 1 point per 1 unit of currency
-	businessAddress: '123 MG Road, Bangalore, Karnataka 560001',
-	businessPhone: '+91 80 2345 6789',
-	businessEmail: 'info@eatwithme.com',
-	taxNumber: '29ABCDE1234F1Z5',
-	fssaiNumber: '12345678901234',
+	businessAddress: '',
+	businessPhone: '',
+	businessEmail: '',
+	taxNumber: '',
+	fssaiNumber: '',
 };
 
 // Currency mapping based on country
