@@ -719,9 +719,9 @@ interface AppContextType {
 
 	customers: Customer[];
 	updateCustomers: (customers: Customer[]) => void;
-	addCustomer: (customer: Customer) => void;
-	updateCustomer: (id: string, updates: Partial<Customer>) => void;
-	deleteCustomer: (id: string) => void;
+	addCustomer: (customer: Omit<Customer, 'id'>) => Promise<Customer>;
+	updateCustomer: (id: string, updates: Partial<Customer>) => Promise<Customer>;
+	deleteCustomer: (id: string) => Promise<void>;
 	inventoryItems: InventoryItem[];
 	updateInventoryItems: (items: InventoryItem[]) => void;
 	addInventoryItem: (item: InventoryItem) => void;
@@ -861,6 +861,7 @@ interface AppContextType {
 		updates: Partial<ExtendedCustomer>
 	) => void;
 	deleteExtendedCustomer: (id: string) => void;
+	loadExtendedCustomers: () => Promise<void>;
 	getCustomerOrderHistory: (
 		customerId: string
 	) => ExtendedCustomer['orderHistory'];
@@ -883,9 +884,25 @@ interface AppContextType {
 	// Purchase Orders Management
 	purchaseOrders: PurchaseOrder[];
 	updatePurchaseOrders: (orders: PurchaseOrder[]) => void;
-	addPurchaseOrder: (order: PurchaseOrder) => void;
-	updatePurchaseOrder: (id: string, updates: Partial<PurchaseOrder>) => void;
-	deletePurchaseOrder: (id: string) => void;
+	addPurchaseOrder: (payload: {
+		supplierId: string;
+		invoiceNumber?: string;
+		date: string;
+		totalAmount: number;
+		notes?: string;
+		items: Array<{
+			quantity: number;
+			unitPrice: number;
+			totalPrice: number;
+			inventoryItemId: string | null;
+		}>;
+	}) => Promise<PurchaseOrder>;
+	updatePurchaseOrder: (
+		id: string,
+		updates: Partial<PurchaseOrder>
+	) => Promise<PurchaseOrder>;
+	deletePurchaseOrder: (id: string) => Promise<void>;
+	loadPurchaseOrders: () => Promise<void>;
 	getPurchaseOrdersBySupplier: (supplierId: string) => PurchaseOrder[];
 	getPurchaseOrdersByStatus: (
 		status: PurchaseOrder['status']

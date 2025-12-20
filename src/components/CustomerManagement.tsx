@@ -445,7 +445,7 @@
 //         </Dialog>
 //           </div>
 //         </div>
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAppContext } from "../contexts/AppContext";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
@@ -583,6 +583,26 @@ export function CustomerManagement() {
   const [selectedCustomersForMarketing, setSelectedCustomersForMarketing] =
     useState<string[]>([]);
 
+  const stats = useMemo(() => {
+    const totalCustomers = extendedCustomers.length;
+    const loyalCustomers = extendedCustomers.filter(
+      (c) => (c.loyaltyPoints ?? 0) > 0
+    ).length;
+    const totalLoyaltyPoints = extendedCustomers.reduce(
+      (sum, c) => sum + (c.loyaltyPoints ?? 0),
+      0
+    );
+    const whatsappOptIns = extendedCustomers.filter((c) => c.whatsappOptIn)
+      .length;
+
+    return {
+      totalCustomers,
+      loyalCustomers,
+      totalLoyaltyPoints,
+      whatsappOptIns,
+    };
+  }, [extendedCustomers]);
+
   useEffect(() => {
     // initial load from backend
     loadExtendedCustomers?.();
@@ -596,17 +616,18 @@ export function CustomerManagement() {
     ].some((field) => field.includes(searchTerm.toLowerCase()))
   );
 
-  const getCustomerTier = (totalSpent: number) => {
-    if (totalSpent >= 20000)
+  const getCustomerTier = (totalSpent: number | undefined) => {
+    const spent = totalSpent ?? 0;
+    if (spent >= 20000)
       return { tier: "Diamond", color: "bg-purple-500" };
-    if (totalSpent >= 10000) return { tier: "Gold", color: "bg-yellow-500" };
-    if (totalSpent >= 5000) return { tier: "Silver", color: "bg-gray-400" };
+    if (spent >= 10000) return { tier: "Gold", color: "bg-yellow-500" };
+    if (spent >= 5000) return { tier: "Silver", color: "bg-gray-400" };
     return { tier: "Bronze", color: "bg-orange-600" };
   };
 
   const getFilteredCustomersForMarketing = () => {
     return extendedCustomers.filter((customer) => {
-      const tier = getCustomerTier(customer.totalSpent);
+      const tier = getCustomerTier(customer.totalSpent ?? 0);
       const lastVisitDate = customer.lastVisit
         ? new Date(customer.lastVisit)
         : null;
@@ -617,14 +638,17 @@ export function CustomerManagement() {
           )
         : Number.MAX_SAFE_INTEGER;
 
+      const visitCount = customer.visitCount ?? 0;
+      const totalSpent = customer.totalSpent ?? 0;
+
       if (
         marketingFilters.minOrders &&
-        customer.visitCount < parseInt(marketingFilters.minOrders)
+        visitCount < parseInt(marketingFilters.minOrders)
       )
         return false;
       if (
         marketingFilters.minSpent &&
-        customer.totalSpent < parseInt(marketingFilters.minSpent)
+        totalSpent < parseInt(marketingFilters.minSpent)
       )
         return false;
       if (
@@ -645,6 +669,44 @@ export function CustomerManagement() {
         return false;
 
       return true;
+    });
+  };
+
+  const handleSendMarketingMessage = () => {
+    const recipients =
+      selectedCustomersForMarketing.length > 0
+        ? extendedCustomers.filter((c) =>
+            selectedCustomersForMarketing.includes(c.id)
+          )
+        : getFilteredCustomersForMarketing();
+
+    if (recipients.length === 0) {
+      addNotification({
+        title: "No recipients",
+        message: "No customers match the selected filters.",
+        type: "error",
+      });
+      return;
+    }
+
+    recipients.forEach((customer) => {
+      const phone = customer.phone?.replace(/\D/g, "") ?? "";
+      const personalized = marketingMessage
+        .replace("{name}", customer.name)
+        .replace("{points}", String(customer.loyaltyPoints ?? 0));
+
+      if (phone) {
+        window.open(
+          `https://wa.me/${phone}?text=${encodeURIComponent(personalized)}`,
+          "_blank"
+        );
+      }
+    });
+
+    addNotification({
+      title: "Message queued",
+      message: `Prepared WhatsApp messages for ${recipients.length} customers`,
+      type: "success",
     });
   };
 
@@ -817,6 +879,7 @@ export function CustomerManagement() {
           t.reservationPhone)
     ).length,
     totalCustomers: extendedCustomers.length,
+    basicCustomers: extendedCustomers.length,
     lastSync: lastSyncTime,
   };
 
@@ -986,7 +1049,7 @@ export function CustomerManagement() {
                     <Switch
                       id="whatsapp"
                       checked={newCustomerForm.whatsappOptIn}
-                      onCheckedChange={(checked) =>
+                      onCheckedChange={(checked: boolean) =>
                         setNewCustomerForm({
                           ...newCustomerForm,
                           whatsappOptIn: checked,
@@ -1108,7 +1171,7 @@ export function CustomerManagement() {
           {/* Customer List */}
           <div className="space-y-4">
             {filteredCustomers.map((customer) => {
-              const tier = getCustomerTier(customer.totalSpent);
+              const tier = getCustomerTier(customer.totalSpent ?? 0);
               return (
                 <Card key={customer.id} className="cursor-pointer hover:shadow-md transition-shadow">
                   <CardContent className="p-4">
@@ -1143,11 +1206,11 @@ export function CustomerManagement() {
                       <div className="text-right">
                         <div className="flex items-center gap-4">
                           <div className="text-center">
-                            <div className="text-lg font-bold text-primary">{customer.visitCount}</div>
+                            <div className="text-lg font-bold text-primary">{customer.visitCount ?? 0}</div>
                             <div className="text-xs text-muted-foreground">Visits</div>
                           </div>
                           <div className="text-center">
-                            <div className="text-lg font-bold text-green-600">₹{customer.totalSpent.toLocaleString()}</div>
+                            <div className="text-lg font-bold text-green-600">₹{(customer.totalSpent ?? 0).toLocaleString()}</div>
                             <div className="text-xs text-muted-foreground">Total Spent</div>
                           </div>
                           <div className="text-center">
@@ -1229,7 +1292,7 @@ export function CustomerManagement() {
                   <Label htmlFor="tier">Customer Tier</Label>
                   <Select 
                     value={marketingFilters.tier}
-                    onValueChange={(value) => setMarketingFilters(prev => ({ ...prev, tier: value }))}
+                    onValueChange={(value: string) => setMarketingFilters(prev => ({ ...prev, tier: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select tier" />
@@ -1261,7 +1324,7 @@ export function CustomerManagement() {
                   <Checkbox 
                     id="whatsappOptIn" 
                     checked={marketingFilters.whatsappOptIn}
-                    onCheckedChange={(checked) => setMarketingFilters(prev => ({ ...prev, whatsappOptIn: !!checked }))}
+                    onCheckedChange={(checked: boolean) => setMarketingFilters(prev => ({ ...prev, whatsappOptIn: !!checked }))}
                   />
                   <Label htmlFor="whatsappOptIn">WhatsApp Opt-in only</Label>
                 </div>
@@ -1270,7 +1333,7 @@ export function CustomerManagement() {
                   <Checkbox 
                     id="hasBirthday" 
                     checked={marketingFilters.hasBirthday}
-                    onCheckedChange={(checked) => setMarketingFilters(prev => ({ ...prev, hasBirthday: !!checked }))}
+                    onCheckedChange={(checked: boolean) => setMarketingFilters(prev => ({ ...prev, hasBirthday: !!checked }))}
                   />
                   <Label htmlFor="hasBirthday">Has birthday info</Label>
                 </div>
@@ -1279,7 +1342,7 @@ export function CustomerManagement() {
                   <Checkbox 
                     id="hasAnniversary" 
                     checked={marketingFilters.hasAnniversary}
-                    onCheckedChange={(checked) => setMarketingFilters(prev => ({ ...prev, hasAnniversary: !!checked }))}
+                    onCheckedChange={(checked: boolean) => setMarketingFilters(prev => ({ ...prev, hasAnniversary: !!checked }))}
                   />
                   <Label htmlFor="hasAnniversary">Has anniversary info</Label>
                 </div>
@@ -1305,21 +1368,21 @@ export function CustomerManagement() {
                     <div className="flex items-center gap-2">
                       <Checkbox
                         checked={selectedCustomersForMarketing.includes(customer.id)}
-                        onCheckedChange={(checked) => {
+                        onCheckedChange={(checked: boolean) => {
                           if (checked) {
-                            setSelectedCustomersForMarketing(prev => [...prev, customer.id]);
+                            setSelectedCustomersForMarketing((prev) => [...prev, customer.id]);
                           } else {
-                            setSelectedCustomersForMarketing(prev => prev.filter(id => id !== customer.id));
+                            setSelectedCustomersForMarketing((prev) => prev.filter((id) => id !== customer.id));
                           }
                         }}
                       />
                       <span className="font-medium">{customer.name}</span>
-                      <Badge className={`${getCustomerTier(customer.totalSpent).color} text-white text-xs`}>
-                        {getCustomerTier(customer.totalSpent).tier}
+                      <Badge className={`${getCustomerTier(customer.totalSpent ?? 0).color} text-white text-xs`}>
+                        {getCustomerTier(customer.totalSpent ?? 0).tier}
                       </Badge>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {customer.totalOrders} orders • ₹{customer.totalSpent.toLocaleString()}
+                      {customer.totalOrders ?? 0} orders • ₹{(customer.totalSpent ?? 0).toLocaleString()}
                     </div>
                   </div>
                 ))}
@@ -1563,6 +1626,8 @@ export function CustomerManagement() {
           )}
         </DialogContent>
       </Dialog>
+      {/* Spacer to increase scroll height*/}
+			<div aria-hidden className='h-32 sm:h-40' />
     </div >
       
   );
