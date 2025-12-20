@@ -1,6 +1,6 @@
 /** @format */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -29,7 +29,7 @@ import {
 	countryCurrencyMap,
 	TaxRule,
 } from '../contexts/AppContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 import {
 	Building,
@@ -62,10 +62,18 @@ import {
 import apiClient from '../lib/api';
 
 export function Settings() {
-	const { settings, updateSettings } = useAppContext();
+	const {
+		settings,
+		updateSettings,
+		addTaxRule,
+		updateTaxRule,
+		deleteTaxRule,
+		calculateTaxes,
+	} = useAppContext();
 	const [activeTab, setActiveTab] = useState('business');
 	const [saved, setSaved] = useState(false);
 	const [loading, setLoading] = useState(true); // ADD THIS
+	const [isSaving, setIsSaving] = useState(false);
 	const [copiedId, setCopiedId] = useState(false); // ADD THIS
 
 	const [businessInfo, setBusinessInfo] = useState({
@@ -78,14 +86,26 @@ export function Settings() {
 		fssaiNumber: '',
 	});
 
+	const hasFetchedTenant = useRef(false);
+
 	useEffect(() => {
+		if (hasFetchedTenant.current) return;
+		hasFetchedTenant.current = true;
+		setLoading(true);
+
+		const localRestaurantId =
+			sessionStorage.getItem('restaurantId') ||
+			localStorage.getItem('restaurantId') ||
+			'';
+
 		const fetchTenant = async () => {
 			try {
 				const response = await apiClient.get('/tenant');
 				const tenantData = response.data;
 
 				setBusinessInfo({
-					restaurantId: tenantData.restaurantId || settings.restaurantId || '',
+					restaurantId:
+						tenantData.restaurantId || settings.restaurantId || localRestaurantId || '',
 					name: tenantData.restaurantName || settings.restaurantName || '',
 					address: tenantData.businessAddress || settings.businessAddress || '',
 					phone: tenantData.businessPhone || settings.businessPhone || '',
@@ -95,6 +115,8 @@ export function Settings() {
 				});
 
 				updateSettings({
+					restaurantId:
+						tenantData.restaurantId || settings.restaurantId || localRestaurantId || '',
 					restaurantName: tenantData.restaurantName || '',
 					businessAddress: tenantData.businessAddress || '',
 					businessPhone: tenantData.businessPhone || '',
@@ -108,7 +130,7 @@ export function Settings() {
 			} catch (error) {
 				console.error('Failed to fetch tenant data:', error);
 				setBusinessInfo({
-					restaurantId: settings.restaurantId || '',
+					restaurantId: settings.restaurantId || localRestaurantId || '',
 					name: settings.restaurantName || '',
 					address: settings.businessAddress || '',
 					phone: settings.businessPhone || '',
@@ -122,15 +144,7 @@ export function Settings() {
 		};
 
 		fetchTenant();
-	}, [
-		settings.restaurantId,
-		settings.restaurantName,
-		settings.businessAddress,
-		settings.businessPhone,
-		settings.businessEmail,
-		settings.taxNumber,
-		settings.fssaiNumber,
-	]);
+	}, []);
 
 	const handleCopyRestaurantId = () => {
 		if (!businessInfo.restaurantId) return;
@@ -307,27 +321,57 @@ export function Settings() {
 	};
 
 	const handleSave = async () => {
+		const restaurantIdHeader =
+			sessionStorage.getItem('restaurantId') ||
+			localStorage.getItem('restaurantId') ||
+			businessInfo.restaurantId;
+
+		if (!restaurantIdHeader) {
+			toast.error('Missing restaurant ID. Please log in again and retry.');
+			return;
+		}
+
+		setIsSaving(true);
 		try {
-			await apiClient.put('/tenant', {
+			await apiClient.put(
+				'/tenant',
+				{
+					restaurantId: restaurantIdHeader,
+					restaurantName: businessInfo.name,
+					businessAddress: businessInfo.address,
+					businessPhone: businessInfo.phone,
+					businessEmail: businessInfo.email,
+					country: settings.country,
+					currency: settings.currency,
+					currencySymbol: settings.currencySymbol,
+					taxNumber: businessInfo.taxNumber,
+					fssaiNumber: businessInfo.fssaiNumber,
+				},
+				{
+					headers: { 'X-Restaurant-Id': restaurantIdHeader },
+				}
+			);
+
+			// keep storage in sync so other views see the updated name immediately
+			sessionStorage.setItem('restaurantId', restaurantIdHeader);
+			sessionStorage.setItem('restaurantName', businessInfo.name);
+			localStorage.setItem('restaurantId', restaurantIdHeader);
+			localStorage.setItem('restaurantName', businessInfo.name);
+
+			updateSettings({
+				restaurantId: restaurantIdHeader,
 				restaurantName: businessInfo.name,
 				businessAddress: businessInfo.address,
 				businessPhone: businessInfo.phone,
 				businessEmail: businessInfo.email,
-				country: settings.country,
-				currency: settings.currency,
-				currencySymbol: settings.currencySymbol,
 				taxNumber: businessInfo.taxNumber,
 				fssaiNumber: businessInfo.fssaiNumber,
 			});
 
-			updateSettings({
-				restaurantName: businessInfo.name,
-				businessAddress: businessInfo.address,
-				businessPhone: businessInfo.phone,
-				businessEmail: businessInfo.email,
-				taxNumber: businessInfo.taxNumber,
-				fssaiNumber: businessInfo.fssaiNumber,
-			});
+			setBusinessInfo((prev) => ({
+				...prev,
+				restaurantId: restaurantIdHeader,
+			}));
 
 			setSaved(true);
 			toast.success('Settings saved successfully!');
@@ -335,6 +379,8 @@ export function Settings() {
 		} catch (error) {
 			console.error('Failed to save settings:', error);
 			toast.error('Failed to save settings. Please try again.');
+		} finally {
+			setIsSaving(false);
 		}
 	};
 
@@ -442,16 +488,13 @@ export function Settings() {
 							<div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3'>
 								<div className='space-y-1'>
 									<Label>Restaurant ID</Label>
-									<p className='text-xs text-muted-foreground'>
-										Use this ID when connecting EatWithMe to other services or
-										when contacting support
-									</p>
 								</div>
 								<div className='flex items-center gap-2'>
 									<Input
 										className='w-48'
 										value={businessInfo.restaurantId}
 										readOnly
+										disabled
 									/>
 									<Button
 										type='button'
@@ -1580,6 +1623,9 @@ export function Settings() {
 					</Card>
 				</TabsContent>
 			</Tabs>
+
+			{/* Spacer to increase scroll height*/}
+			<div aria-hidden className='h-32 sm:h-40' />
 		</div>
 	);
 }
