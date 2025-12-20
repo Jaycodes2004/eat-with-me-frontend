@@ -38,6 +38,32 @@ import {
   Calculator
 } from 'lucide-react';
 
+type ReportOrderItem = {
+  id?: string;
+  name: string;
+  price: number;
+  quantity: number;
+  margin?: number;
+};
+
+type ReportOrder = {
+  orderDate?: string;
+  orderTime?: string;
+  status?: string;
+  totalAmount?: number;
+  items?: ReportOrderItem[];
+  paymentMethod?: string;
+  customerPhone?: string;
+  estimatedTime?: number;
+};
+
+type ReportMenuItem = {
+  id: string;
+  name: string;
+  category?: string;
+  price?: number;
+};
+
 interface ReportsProps {
   onNavigate?: (screen: string) => void;
   userRole?: string;
@@ -62,6 +88,9 @@ export function Reports(props: ReportsProps) {
   const [dateFilter, setDateFilter] = useState('today');
   const [activeTab, setActiveTab] = useState('sales');
 
+  const safeOrders = (Array.isArray(orders) ? orders : []) as ReportOrder[];
+  const safeMenuItems = (Array.isArray(menuItems) ? menuItems : []) as ReportMenuItem[];
+
   // Generate real sales data from actual orders
   const salesData = useMemo(() => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -72,34 +101,34 @@ export function Reports(props: ReportsProps) {
       date.setDate(today.getDate() - (6 - index)); // Last 7 days
       const dateStr = date.toISOString().split('T')[0];
       
-      const dayOrders = orders.filter(order => 
+      const dayOrders = safeOrders.filter(order => 
         order.orderDate === dateStr && order.status === 'completed'
       );
       
-      const sales = dayOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+      const sales = dayOrders.reduce((sum, order) => sum + (order.totalAmount ?? 0), 0);
       const orderCount = dayOrders.length;
       const profit = Math.round(sales * 0.3); // Assuming 30% profit margin
       const customers = new Set(dayOrders.map(order => order.customerPhone)).size;
       
       return { name: day, sales, orders: orderCount, profit, customers };
     });
-  }, [orders]);
+  }, [safeOrders]);
 
   // Generate real category data from actual menu items and orders
   const categoryData = useMemo(() => {
-    const categories = [...new Set(menuItems.map(item => item.category))];
-    const totalRevenue = orders
+    const categories = [...new Set(safeMenuItems.map(item => item.category).filter(Boolean))] as string[];
+    const totalRevenue = safeOrders
       .filter(order => order.status === 'completed')
-      .reduce((sum, order) => sum + order.totalAmount, 0);
+      .reduce((sum, order) => sum + (order.totalAmount ?? 0), 0);
     
     return categories.map((category, index) => {
-      const categoryItems = menuItems.filter(item => item.category === category);
-      const categoryOrders = orders
+      const categoryItems = safeMenuItems.filter(item => item.category === category);
+      const categoryOrders = safeOrders
         .filter(order => order.status === 'completed')
-        .flatMap(order => order.items)
+        .flatMap(order => Array.isArray(order.items) ? order.items : [])
         .filter(item => categoryItems.some(menuItem => menuItem.id === item.id));
       
-      const revenue = categoryOrders.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const revenue = categoryOrders.reduce((sum, item) => sum + ((item.price ?? 0) * (item.quantity ?? 0)), 0);
       const value = totalRevenue > 0 ? Math.round((revenue / totalRevenue) * 100) : 0;
       const growth = Math.floor(Math.random() * 30) - 10; // Mock growth for now
       
@@ -113,35 +142,44 @@ export function Reports(props: ReportsProps) {
         growth
       };
     });
-  }, [menuItems, orders]);
+  }, [safeMenuItems, safeOrders]);
 
   // Generate real top items data from actual orders
   const topItems = useMemo(() => {
-    const itemStats = {};
+    const itemStats: Record<string, {
+      name: string;
+      quantity: number;
+      revenue: number;
+      profit: number;
+      margin: number;
+    }> = {};
     
-    orders
+    safeOrders
       .filter(order => order.status === 'completed')
       .forEach(order => {
-        order.items.forEach(item => {
-          if (!itemStats[item.name]) {
-            itemStats[item.name] = {
-              name: item.name,
+        const orderItems = Array.isArray(order.items) ? order.items : [];
+        orderItems.forEach(item => {
+          const key = item.name || item.id || 'unknown';
+          if (!itemStats[key]) {
+            itemStats[key] = {
+              name: item.name || 'Unnamed Item',
               quantity: 0,
               revenue: 0,
               profit: 0,
-              margin: 30 // Default margin
+              margin: typeof item.margin === 'number' ? item.margin : 30 // Default margin
             };
           }
-          itemStats[item.name].quantity += item.quantity;
-          itemStats[item.name].revenue += item.price * item.quantity;
-          itemStats[item.name].profit += Math.round(item.price * item.quantity * 0.3);
+          const lineRevenue = (item.price ?? 0) * (item.quantity ?? 0);
+          itemStats[key].quantity += item.quantity ?? 0;
+          itemStats[key].revenue += lineRevenue;
+          itemStats[key].profit += Math.round(lineRevenue * 0.3);
         });
       });
     
     return Object.values(itemStats)
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
-  }, [orders]);
+  }, [safeOrders]);
 
   // Generate real hourly data from actual orders
   const hourlyData = useMemo(() => {
@@ -149,13 +187,13 @@ export function Reports(props: ReportsProps) {
     const today = new Date().toISOString().split('T')[0];
     
     return hours.map(hour => {
-      const hourOrders = orders.filter(order => {
+      const hourOrders = safeOrders.filter(order => {
         if (order.orderDate !== today || order.status !== 'completed') return false;
-        const orderHour = parseInt(order.orderTime.split(':')[0]);
+        const orderHour = parseInt((order.orderTime ?? '0:0').split(':')[0]);
         return orderHour === hour;
       });
       
-      const sales = hourOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+      const sales = hourOrders.reduce((sum, order) => sum + (order.totalAmount ?? 0), 0);
       const orderCount = hourOrders.length;
       
       const formatHour = hour <= 12 ? 
@@ -164,16 +202,16 @@ export function Reports(props: ReportsProps) {
       
       return { hour: formatHour, orders: orderCount, sales };
     });
-  }, [orders]);
+  }, [safeOrders]);
 
   // Calculate total revenue from actual orders for tax calculations with error handling
   const totalRevenue = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
-    return orders
+    return safeOrders
       .filter(order => order.orderDate === today && order.status === 'completed')
-      .reduce((sum, order) => sum + order.totalAmount, 0);
-  }, [orders]);
-  const baseAmount = totalRevenue / 1.18; // Assuming taxes are already included
+      .reduce((sum, order) => sum + (order.totalAmount ?? 0), 0);
+  }, [safeOrders]);
+  const baseAmount = totalRevenue > 0 ? totalRevenue / 1.18 : 0; // Assuming taxes are already included
   
   // Safe currency symbol with fallback
   const safeCurrencySymbol = settings?.currencySymbol || '$';
@@ -200,7 +238,7 @@ export function Reports(props: ReportsProps) {
   // Calculate actual today's stats from real data
   const todayStats = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
-    const todayOrders = orders.filter(order => order.orderDate === today);
+    const todayOrders = safeOrders.filter(order => order.orderDate === today);
     const completedTodayOrders = todayOrders.filter(order => order.status === 'completed');
     
     const totalOrders = todayOrders.length;
@@ -209,11 +247,11 @@ export function Reports(props: ReportsProps) {
     // Calculate cash vs digital sales from actual orders
     const cashSales = completedTodayOrders
       .filter(order => order.paymentMethod === 'cash')
-      .reduce((sum, order) => sum + order.totalAmount, 0);
+      .reduce((sum, order) => sum + (order.totalAmount ?? 0), 0);
     
     const digitalSales = completedTodayOrders
       .filter(order => ['upi', 'card'].includes(order.paymentMethod || ''))
-      .reduce((sum, order) => sum + order.totalAmount, 0);
+      .reduce((sum, order) => sum + (order.totalAmount ?? 0), 0);
     
     // Calculate unique customers
     const customerCount = new Set(
@@ -223,9 +261,9 @@ export function Reports(props: ReportsProps) {
     ).size;
     
     // Calculate peak hour from order times
-    const hourCounts = {};
+    const hourCounts: Record<number, number> = {};
     todayOrders.forEach(order => {
-      const hour = parseInt(order.orderTime.split(':')[0]);
+      const hour = parseInt((order.orderTime ?? '0:0').split(':')[0]);
       hourCounts[hour] = (hourCounts[hour] || 0) + 1;
     });
     
@@ -249,9 +287,9 @@ export function Reports(props: ReportsProps) {
       customerCount,
       peakHour: peakHourFormatted,
       avgWaitTime: todayOrders.length > 0 ? Math.round(todayOrders.reduce((sum, order) => 
-        sum + (order.estimatedTime || 15), 0) / todayOrders.length) : 0
+        sum + (order.estimatedTime ?? 15), 0) / todayOrders.length) : 0
     };
-  }, [orders, totalRevenue, totalTax, barTaxes.totalTax]);
+  }, [safeOrders, totalRevenue, totalTax, barTaxes.totalTax]);
 
   const downloadReport = (format: 'pdf' | 'excel') => {
     // Mock download functionality
@@ -317,7 +355,7 @@ export function Reports(props: ReportsProps) {
                 </div>
                 <div className="flex items-center gap-1 mt-1">
                   <TrendingUp size={12} className="text-green-600" />
-                  <span className="text-xs text-green-600">+12%</span>
+                  {/* <span className="text-xs text-green-600">+12%</span> */}
                 </div>
               </div>
               <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
@@ -335,7 +373,7 @@ export function Reports(props: ReportsProps) {
                 <span className="text-xl font-bold text-primary">{todayStats.totalOrders}</span>
                 <div className="flex items-center gap-1 mt-1">
                   <TrendingUp size={12} className="text-green-600" />
-                  <span className="text-xs text-green-600">+8%</span>
+                  {/* <span className="text-xs text-green-600">+8%</span> */}
                 </div>
               </div>
               <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -358,7 +396,7 @@ export function Reports(props: ReportsProps) {
                 </div>
                 <div className="flex items-center gap-1 mt-1">
                   <TrendingDown size={12} className="text-red-600" />
-                  <span className="text-xs text-red-600">-3%</span>
+                  {/* <span className="text-xs text-red-600">-3%</span> */}
                 </div>
               </div>
               <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
@@ -381,7 +419,7 @@ export function Reports(props: ReportsProps) {
                 </div>
                 <div className="flex items-center gap-1 mt-1">
                   <TrendingUp size={12} className="text-green-600" />
-                  <span className="text-xs text-green-600">+15%</span>
+                  {/* <span className="text-xs text-green-600">+15%</span> */}
                 </div>
               </div>
               <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
@@ -399,7 +437,7 @@ export function Reports(props: ReportsProps) {
                 <span className="text-xl font-bold text-primary">{todayStats.customerCount}</span>
                 <div className="flex items-center gap-1 mt-1">
                   <TrendingUp size={12} className="text-green-600" />
-                  <span className="text-xs text-green-600">+5%</span>
+                  {/* <span className="text-xs text-green-600">+5%</span> */}
                 </div>
               </div>
               <div className="w-10 h-10 bg-cyan-100 rounded-full flex items-center justify-center">
@@ -417,7 +455,7 @@ export function Reports(props: ReportsProps) {
                 <span className="text-xl font-bold text-primary">{todayStats.profitMargin}%</span>
                 <div className="flex items-center gap-1 mt-1">
                   <TrendingUp size={12} className="text-green-600" />
-                  <span className="text-xs text-green-600">+2.1%</span>
+                  {/* <span className="text-xs text-green-600">+2.1%</span> */}
                 </div>
               </div>
               <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
@@ -499,7 +537,7 @@ export function Reports(props: ReportsProps) {
                     <div className="font-semibold text-green-700">
                       {safeCurrencySymbol}{todayStats.cashSales.toLocaleString()}
                     </div>
-                    <div className="text-sm text-green-600">41.4%</div>
+                    {/* <div className="text-sm text-green-600">41.4%</div> */}
                   </div>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
@@ -508,7 +546,7 @@ export function Reports(props: ReportsProps) {
                     <div className="font-semibold text-blue-700">
                       {safeCurrencySymbol}{todayStats.digitalSales.toLocaleString()}
                     </div>
-                    <div className="text-sm text-blue-600">58.6%</div>
+                    {/* <div className="text-sm text-blue-600">58.6%</div> */}
                   </div>
                 </div>
               </CardContent>
@@ -529,7 +567,7 @@ export function Reports(props: ReportsProps) {
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Customer Satisfaction</span>
-                  <Badge className="bg-green-500">4.7/5</Badge>
+                  {/* <Badge className="bg-green-500">4.7/5</Badge> */}
                 </div>
               </CardContent>
             </Card>
@@ -539,7 +577,7 @@ export function Reports(props: ReportsProps) {
                 <CardTitle className="text-primary">Daily Targets</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
+                {/* <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Sales Target</span>
                     <span>91% achieved</span>
@@ -565,7 +603,7 @@ export function Reports(props: ReportsProps) {
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div className="bg-purple-600 h-2 rounded-full" style={{ width: '87%' }}></div>
                   </div>
-                </div>
+                </div> */}
               </CardContent>
             </Card>
           </div>

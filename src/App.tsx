@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { AppProvider, useAppContext } from './contexts/AppContext';
+import { AppProvider, useAppContext, type User } from './contexts/AppContext';
 import { useAuth } from './contexts/AuthContext';
 import { normalizePermissionList } from './utils/appConfig';
 import {
@@ -66,9 +66,7 @@ function AppContent() {
 		getModuleByComponent,
 	} = useAppContext();
 
-	const { isAuthenticated, user, login, logout } = useAuth();
-
-	const [isLoggedIn, setIsLoggedIn] = useState(false);
+	const { isAuthenticated, user: authUser, login: authLogin, logout: authLogout } = useAuth();
 	const [isOnline, setIsOnline] = useState(true);
 	const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
 	const [isAIAssistantMinimized, setIsAIAssistantMinimized] = useState(false);
@@ -84,6 +82,8 @@ function AppContent() {
 		).length;
 	}, [notifications]);
 
+	type NormalizedUser = User & { email: string };
+
 	const buildFallbackEmail = () => {
 		const sanitizedName = settings.restaurantName
 			.toLowerCase()
@@ -91,56 +91,73 @@ function AppContent() {
 		return `manager@${sanitizedName || 'eatwithme'}.com`;
 	};
 
+	const normalizeUser = (
+		authUser?: Partial<User>,
+		allowedModulesFromTenant?: string[]
+	): NormalizedUser | null => {
+		if (!authUser) return null;
+
+		const tenantAllowed = (() => {
+			try {
+				const stored = localStorage.getItem('allowedModules');
+				return stored ? JSON.parse(stored) : undefined;
+			} catch (error) {
+				console.warn('Failed to parse allowedModules from storage', error);
+				return undefined;
+			}
+		})();
+
+		return {
+			id: authUser.id || '1',
+			name: authUser.name || `${settings.restaurantName} Manager`,
+			role: authUser.role || 'manager',
+			permissions: normalizePermissionList(
+				Array.isArray(authUser.permissions) && authUser.permissions.length > 0
+					? authUser.permissions
+					: ['all_access']
+			),
+			dashboardModules:
+				Array.isArray(authUser.dashboardModules) &&
+				authUser.dashboardModules.length > 0
+					? authUser.dashboardModules
+					: buildDefaultModules(),
+			avatar: authUser.avatar,
+			shift: authUser.shift ?? 'Current Shift',
+			email: authUser.email || buildFallbackEmail(),
+			phone: authUser.phone,
+			allowedModules:
+				Array.isArray(allowedModulesFromTenant)
+					? allowedModulesFromTenant
+					: Array.isArray(tenantAllowed)
+					? tenantAllowed
+					: (authUser as any).allowedModules,
+		};
+	};
+
 	const buildDefaultModules = () => appModules.slice(0, 5).map((m) => m.id);
 
 	const handleLogin = (payload?: LoginResponsePayload) => {
-		setIsLoggedIn(true);
+		const normalizedUser = normalizeUser(
+			payload?.user,
+			payload?.restaurant?.allowedModules
+		);
 
-		const apiUser = payload?.user as
-			| (LoginResponsePayload['user'] & Partial<User>)
-			| undefined;
-		const restaurantAllowedModules = (payload as any)?.restaurant
-			?.allowedModules as string[] | undefined;
+		if (normalizedUser) {
+			setCurrentUser(normalizedUser);
+		}
 
-		const normalizedUser: User = apiUser
-			? {
-					id: apiUser.id,
-					name: apiUser.name || `${settings.restaurantName} Manager`,
-					role: apiUser.role || 'manager',
-					permissions: normalizePermissionList(
-						Array.isArray(apiUser.permissions) && apiUser.permissions.length > 0
-							? apiUser.permissions
-							: ['all_access']
-					),
-					dashboardModules:
-						Array.isArray(apiUser.dashboardModules) &&
-						apiUser.dashboardModules.length > 0
-							? apiUser.dashboardModules
-							: buildDefaultModules(),
-					avatar: apiUser.avatar,
-					shift: apiUser.shift ?? 'Current Shift',
-					email: apiUser.email || buildFallbackEmail(),
-					phone: apiUser.phone,
-					allowedModules:
-						restaurantAllowedModules && Array.isArray(restaurantAllowedModules)
-							? restaurantAllowedModules
-							: undefined,
-			  }
-			: {
-					id: '1',
-					name: `${settings.restaurantName} Manager`,
-					role: 'manager',
-					permissions: normalizePermissionList(['all_access']),
-					dashboardModules: buildDefaultModules(),
-					shift: 'Current Shift',
-					email: buildFallbackEmail(),
-			  };
+		if (payload?.accessToken && payload?.restaurant?.id && normalizedUser) {
+			authLogin(
+				{ user: normalizedUser, accessToken: payload.accessToken },
+				payload.restaurant.id
+			);
+		}
+
+		if (!normalizedUser) return;
 
 		const isFirstLogin =
-			(apiUser as any)?.isFirstLogin ??
+			(payload?.user as any)?.isFirstLogin ??
 			!localStorage.getItem('hasSeenOnboarding');
-
-		setCurrentUser(normalizedUser);
 		setCurrentModule('dashboard');
 
 		// Show onboarding for first-time users
@@ -158,7 +175,7 @@ function AppContent() {
 	};
 
 	const handleLogout = () => {
-		setIsLoggedIn(false);
+		authLogout();
 		setCurrentUser(null);
 		setCurrentModule('dashboard');
 		setCurrentOrder(null);
@@ -170,7 +187,7 @@ function AppContent() {
 		const specialScreens = ['all-modules', 'dashboard'];
 
 		// Check if user has access to this module
-		if (user && (specialScreens.includes(screen) || hasModuleAccess(screen))) {
+		if (authUser && (specialScreens.includes(screen) || hasModuleAccess(screen))) {
 			setCurrentModule(screen);
 			// Track recently used modules (but not special screens)
 			if (!specialScreens.includes(screen)) {
@@ -281,7 +298,7 @@ function AppContent() {
 				e.preventDefault();
 				const index = parseInt(e.key) - 1;
 				const bottomNavItems = bottomNavigation.filter(
-					(item) => user && hasModuleAccess(item.id)
+					(item) => authUser && hasModuleAccess(item.id)
 				);
 				if (bottomNavItems[index]) {
 					handleNavigate(bottomNavItems[index].id);
@@ -291,7 +308,7 @@ function AppContent() {
 
 		document.addEventListener('keydown', handleKeyboard);
 		return () => document.removeEventListener('keydown', handleKeyboard);
-	}, [user, bottomNavigation, hasModuleAccess]);
+	}, [authUser, bottomNavigation, hasModuleAccess]);
 
 	// Get breadcrumb path for current module
 	const getBreadcrumbPath = () => {
@@ -352,10 +369,22 @@ function AppContent() {
 	// Get filtered search results
 	const searchResults = searchQuery.trim() ? searchModules(searchQuery) : [];
 
+	const isSessionActive = isAuthenticated && !!authUser;
+
+	useEffect(() => {
+		const normalized = normalizeUser(authUser || undefined);
+		if (normalized) {
+			setCurrentUser(normalized);
+		} else {
+			setCurrentUser(null);
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [authUser]);
+
 	const contextProps = {
 		onNavigate: handleNavigate,
 		activeScreen: currentModule,
-		userRole: user?.role || 'guest',
+		userRole: authUser?.role || 'guest',
 		currentOrder,
 		setCurrentOrder,
 		selectedTable,
@@ -367,8 +396,7 @@ function AppContent() {
 		return <ComponentToRender {...contextProps} />;
 	};
 
-	// Replace your own login logic with AuthContext
-	if (!isLoggedIn) {
+	if (!isSessionActive) {
 		return <LoginScreen onLogin={handleLogin} />;
 	}
 

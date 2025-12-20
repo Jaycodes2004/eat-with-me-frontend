@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 interface User {
@@ -25,27 +25,29 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [restaurantId, setRestaurantId] = useState<string | null>(null);
-  const navigate = useNavigate();
+const getInitialAuthState = () => {
+  try {
+    const storedUser = localStorage.getItem('user');
+    const storedToken = localStorage.getItem('accessToken');
+    const storedRestaurantId = localStorage.getItem('restaurantId');
 
-  useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem('user');
-      const storedToken = localStorage.getItem('accessToken');
-      const storedRestaurantId = localStorage.getItem('restaurantId');
-      if (storedUser && storedToken && storedRestaurantId) {
-        setUser(JSON.parse(storedUser));
-        setAccessToken(storedToken);
-        setRestaurantId(storedRestaurantId);
-      }
-    } catch (error) {
-      console.error("Failed to parse auth data from localStorage", error);
-      logout();
-    }
-  }, []);
+    return {
+      user: storedUser ? (JSON.parse(storedUser) as User) : null,
+      accessToken: storedToken || null,
+      restaurantId: storedRestaurantId || null,
+    };
+  } catch (error) {
+    console.error('Failed to parse auth data from localStorage', error);
+    return { user: null, accessToken: null, restaurantId: null };
+  }
+};
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const initialState = getInitialAuthState();
+  const [user, setUser] = useState<User | null>(initialState.user);
+  const [accessToken, setAccessToken] = useState<string | null>(initialState.accessToken);
+  const [restaurantId, setRestaurantId] = useState<string | null>(initialState.restaurantId);
+  const navigate = useNavigate();
 
   const login = (data: { user: User; accessToken: string }, resId: string) => {
     localStorage.setItem('user', JSON.stringify(data.user));
@@ -75,8 +77,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return requiredPermissions.every(p => user.permissions.includes(p));
   };
 
+  const isAuthenticated = !!accessToken && !!user;
+
   return (
-    <AuthContext.Provider value={{ user, accessToken, restaurantId, isAuthenticated: !!accessToken, login, logout, hasPermission }}>
+    <AuthContext.Provider value={{ user, accessToken, restaurantId, isAuthenticated, login, logout, hasPermission }}>
       {children}
     </AuthContext.Provider>
   );

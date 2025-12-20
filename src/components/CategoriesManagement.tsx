@@ -17,7 +17,7 @@ import {
   UserCheck,
   Loader2
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 type Role = AppRole;
 
@@ -693,6 +693,8 @@ export function CategoriesManagement() {
           </div>
         </DialogContent>
       </Dialog>
+      {/* Spacer to increase scroll height*/}
+			{<div aria-hidden className='h-32 sm:h-40' />}
     </div>
   );
 }
