@@ -874,14 +874,22 @@
 
 /** @format */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppContext } from '../contexts/AppContext';
+import type { Order } from '../contexts/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from './ui/select';
 import {
 	Dialog,
 	DialogContent,
@@ -906,7 +914,7 @@ import {
 } from 'lucide-react';
 import { useKitchenLiveUpdates } from '../lib/useKitchenLiveUpdates';
 
-type KitchenOrder = any;
+type KitchenOrder = Order;
 
 export function KitchenDisplay() {
 	const {
@@ -918,7 +926,7 @@ export function KitchenDisplay() {
 		settings,
 	} = useAppContext();
 
-	// active = pending + preparing + completed (ready to serve)
+	// active = pending + preparing + completed (ready/served)
 	const activeOrders = orders.filter((order) =>
 		['pending', 'preparing', 'completed'].includes(order.status)
 	);
@@ -932,10 +940,36 @@ export function KitchenDisplay() {
 	const [selectedOrderForDetails, setSelectedOrderForDetails] =
 		useState<KitchenOrder | null>(null);
 	const [activeTab, setActiveTab] = useState('live');
+	const [needsScroll, setNeedsScroll] = useState(false);
+	const containerRef = useRef<HTMLDivElement | null>(null);
 
 	const restaurantId =
 		(typeof window !== 'undefined' && localStorage.getItem('restaurantId')) ||
 		settings?.restaurantId;
+
+	useEffect(() => {
+		const el = containerRef.current;
+		if (!el) return;
+
+		const measure = () => {
+			setNeedsScroll(el.scrollHeight > el.clientHeight + 4);
+		};
+
+		measure();
+
+		const resizeObserver =
+			typeof ResizeObserver !== 'undefined'
+				? new ResizeObserver(() => measure())
+				: null;
+
+		if (resizeObserver) resizeObserver.observe(el);
+		window.addEventListener('resize', measure);
+
+		return () => {
+			window.removeEventListener('resize', measure);
+			resizeObserver?.disconnect();
+		};
+	}, []);
 
 	useKitchenLiveUpdates(!!restaurantId, (event) => {
 		if (event.type === 'created' && event.order) {
@@ -953,7 +987,7 @@ export function KitchenDisplay() {
 	});
 
 	// kitchen transitions: pending -> preparing -> completed
-	const updateOrderStatus = (orderId: string, newStatus: string) => {
+	const updateOrderStatus = (orderId: string, newStatus: Order['status']) => {
 		updateOrder(orderId, {
 			status: newStatus,
 			preparedBy: newStatus === 'preparing' ? 'Chef Kumar' : undefined,
@@ -975,9 +1009,10 @@ export function KitchenDisplay() {
 				order.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 				order.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 				order.tableNumber?.toString().includes(searchTerm) ||
-				order.items.some((item: any) =>
-					item.name.toLowerCase().includes(searchTerm.toLowerCase())
-				);
+				(Array.isArray(order.items) &&
+					order.items.some((item: any) =>
+						item.name.toLowerCase().includes(searchTerm.toLowerCase())
+					))
 
 			const today = new Date().toISOString().split('T')[0];
 			const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
@@ -1134,7 +1169,7 @@ export function KitchenDisplay() {
 
 			<CardContent className='space-y-4'>
 				<div className='space-y-2'>
-					{order.items.map((item: any) => (
+					{(order.items || []).map((item: any) => (
 						<div
 							key={item.id}
 							className='flex justify-between items-center bg-accent/50 p-3 rounded-lg'>
@@ -1145,7 +1180,7 @@ export function KitchenDisplay() {
 								</div>
 								{item.notes && (
 									<div className='text-xs text-orange-600 mt-1'>
-										<MessageCircle className='w-3 h-3 inline mr-1' />
+										<MessageSquare className='w-3 h-3 inline mr-1' />
 										{item.notes}
 									</div>
 								)}
@@ -1230,7 +1265,9 @@ export function KitchenDisplay() {
 	);
 
 	return (
-		<div className='p-4 space-y-6'>
+		<div
+			ref={containerRef}
+			className='p-4 space-y-6'>
 			{/* Header */}
 			<div className='flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between'>
 				<div>
@@ -1282,9 +1319,9 @@ export function KitchenDisplay() {
 					<div className='grid grid-cols-2 sm:grid-cols-5 gap-4'>
 						<Card className='p-4 text-center'>
 							<div className='text-2xl font-bold text-blue-600'>
-								{filterOrdersByStatus('new').length}
+								{filterOrdersByStatus('pending').length}
 							</div>
-							<div className='text-sm text-muted-foreground'>New Orders</div>
+							<div className='text-sm text-muted-foreground'>Pending</div>
 						</Card>
 						<Card className='p-4 text-center'>
 							<div className='text-2xl font-bold text-yellow-600'>
@@ -1294,9 +1331,9 @@ export function KitchenDisplay() {
 						</Card>
 						<Card className='p-4 text-center'>
 							<div className='text-2xl font-bold text-green-600'>
-								{filterOrdersByStatus('ready').length}
+								{filterOrdersByStatus('completed').length}
 							</div>
-							<div className='text-sm text-muted-foreground'>Ready</div>
+							<div className='text-sm text-muted-foreground'>Completed</div>
 						</Card>
 						<Card className='p-4 text-center'>
 							<div className='text-2xl font-bold text-primary'>
@@ -1305,7 +1342,7 @@ export function KitchenDisplay() {
 							<div className='text-sm text-muted-foreground'>Total Active</div>
 						</Card>
 						<Card className='p-4 text-center'>
-							<div className='text-2xl font-bold text-purple-600'>18</div>
+							{/* <div className='text-2xl font-bold text-purple-600'>18</div> */}
 							<div className='text-sm text-muted-foreground'>Avg Time</div>
 						</Card>
 					</div>
@@ -1316,14 +1353,14 @@ export function KitchenDisplay() {
 						className='w-full'>
 						<TabsList className='grid w-full grid-cols-4'>
 							<TabsTrigger value='all'>All ({activeOrders.length})</TabsTrigger>
-							<TabsTrigger value='new'>
-								New ({filterOrdersByStatus('new').length})
+							<TabsTrigger value='pending'>
+								Pending ({filterOrdersByStatus('pending').length})
 							</TabsTrigger>
 							<TabsTrigger value='preparing'>
 								Preparing ({filterOrdersByStatus('preparing').length})
 							</TabsTrigger>
-							<TabsTrigger value='ready'>
-								Ready ({filterOrdersByStatus('ready').length})
+							<TabsTrigger value='completed'>
+								Completed ({filterOrdersByStatus('completed').length})
 							</TabsTrigger>
 						</TabsList>
 
@@ -1341,10 +1378,10 @@ export function KitchenDisplay() {
 						</TabsContent>
 
 						<TabsContent
-							value='new'
+							value='pending'
 							className='space-y-4'>
 							<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
-								{filterOrdersByStatus('new').map((order) => (
+								{filterOrdersByStatus('pending').map((order) => (
 									<OrderCard
 										key={order.id}
 										order={order}
@@ -1367,10 +1404,10 @@ export function KitchenDisplay() {
 						</TabsContent>
 
 						<TabsContent
-							value='ready'
+							value='completed'
 							className='space-y-4'>
 							<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
-								{filterOrdersByStatus('ready').map((order) => (
+								{filterOrdersByStatus('completed').map((order) => (
 									<OrderCard
 										key={order.id}
 										order={order}
@@ -1705,6 +1742,8 @@ export function KitchenDisplay() {
 					)}
 				</DialogContent>
 			</Dialog>
+			{/* Spacer to increase scroll height*/}
+			{needsScroll && <div aria-hidden className='h-32 sm:h-40' />}
 		</div>
 	);
 }
