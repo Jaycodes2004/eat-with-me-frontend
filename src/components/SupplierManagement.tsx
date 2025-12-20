@@ -1,757 +1,4 @@
-// import { useMemo, useState } from 'react';
-// import { useAppContext, Supplier, PurchaseOrder } from '../contexts/AppContext';
-// import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-// import { Button } from './ui/button';
-// import { Input } from './ui/input';
-// import { Label } from './ui/label';
-// import { Badge } from './ui/badge';
-// import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-// import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-// import { ScrollArea } from './ui/scroll-area';
-// import { Textarea } from './ui/textarea';
-// import { 
-//   Truck, 
-//   Plus, 
-//   Edit, 
-//   Trash2, 
-//   Search, 
-//   Filter,
-//   Phone,
-//   Mail,
-//   MapPin,
-//   IndianRupee,
-//   Calendar,
-//   Clock,
-//   AlertTriangle,
-//   CheckCircle,
-//   Package,
-//   FileText,
-//   Star,
-//   Users
-// } from 'lucide-react';
-
-// // Using Supplier and PurchaseOrder interfaces from AppContext
-
-// type SupplierFormState = {
-//   name: string;
-//   category: string;
-//   contactPerson: string;
-//   phone: string;
-//   email: string;
-//   address: string;
-//   gstNumber: string;
-//   creditDays: number;
-// };
-
-// type EditSupplierFormState = SupplierFormState & {
-//   status: Supplier['status'];
-// };
-
-// type PurchaseOrderItemDraft = {
-//   itemName: string;
-//   quantity: number;
-//   unit: string;
-//   rate: number;
-//   amount: number;
-// };
-
-// type PurchaseOrderDraft = {
-//   supplierId: string;
-//   supplierName: string;
-//   expectedDate: string;
-//   notes: string;
-//   items: PurchaseOrderItemDraft[];
-// };
-
-// const createEmptySupplierForm = (): SupplierFormState => ({
-//   name: '',
-//   category: '',
-//   contactPerson: '',
-//   phone: '',
-//   email: '',
-//   address: '',
-//   gstNumber: '',
-//   creditDays: 0,
-// });
-
-// const createEmptyEditSupplierForm = (): EditSupplierFormState => ({
-//   ...createEmptySupplierForm(),
-//   status: 'active',
-// });
-
-// const createEmptyPurchaseOrderDraft = (): PurchaseOrderDraft => ({
-//   supplierId: '',
-//   supplierName: '',
-//   expectedDate: '',
-//   notes: '',
-//   items: [],
-// });
-
-// const createEmptyPurchaseOrderItem = (): PurchaseOrderItemDraft => ({
-//   itemName: '',
-//   quantity: 0,
-//   unit: 'kg',
-//   rate: 0,
-//   amount: 0,
-// });
-
-// export function SupplierManagement() {
-//   const { 
-//     suppliers, 
-//     addSupplier, 
-//     updateSupplier, 
-//     deleteSupplier, 
-//     getCategoriesByType,
-//     purchaseOrders,
-//     addPurchaseOrder,
-//     updatePurchaseOrder,
-//     deletePurchaseOrder,
-//     getPurchaseOrdersBySupplier,
-//     addNotification
-//   } = useAppContext();
-//   const [searchTerm, setSearchTerm] = useState('');
-//   const [selectedCategory, setSelectedCategory] = useState('all');
-//   const [activeTab, setActiveTab] = useState('suppliers');
-//   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-//   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-//   const [isAddOrderDialogOpen, setIsAddOrderDialogOpen] = useState(false);
-//   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
-//   const [newSupplier, setNewSupplier] = useState<SupplierFormState>(createEmptySupplierForm());
-
-//   const [editSupplier, setEditSupplier] = useState<EditSupplierFormState>(createEmptyEditSupplierForm());
-
-//   const [newOrder, setNewOrder] = useState<PurchaseOrderDraft>(createEmptyPurchaseOrderDraft());
-
-//   const [currentOrderItem, setCurrentOrderItem] = useState<PurchaseOrderItemDraft>(createEmptyPurchaseOrderItem());
-
-//   const supplierCategories = getCategoriesByType('supplier');
-
-//   const supplierCategoryOptions = useMemo<string[]>(() => {
-//     const contextCategories = supplierCategories
-//       .map(category => category.name)
-//       .filter((name): name is string => Boolean(name && name.trim()))
-//       .map(name => name.trim());
-
-//     const derivedCategories = suppliers
-//       .map(supplier => supplier.category)
-//       .filter((name): name is string => Boolean(name && name.trim()))
-//       .map(name => name.trim());
-
-//     return Array.from(new Set([...contextCategories, ...derivedCategories])).sort((a, b) =>
-//       a.localeCompare(b, undefined, { sensitivity: 'base' })
-//     );
-//   }, [supplierCategories, suppliers]);
-
-//   const hasSupplierCategoryOptions = supplierCategoryOptions.length > 0;
-//   const newSupplierCategorySelectValue = hasSupplierCategoryOptions && supplierCategoryOptions.includes(newSupplier.category.trim())
-//     ? newSupplier.category.trim()
-//     : '';
-//   const editSupplierCategorySelectValue = hasSupplierCategoryOptions && supplierCategoryOptions.includes(editSupplier.category.trim())
-//     ? editSupplier.category.trim()
-//     : '';
-
-//   // Purchase orders now come from AppContext
-
-//   // Using categories from context now
-
-//   const normalizedSearch = searchTerm.trim().toLowerCase();
-//   const normalizedSelectedCategory = selectedCategory.trim().toLowerCase();
-
-//   const filteredSuppliers = suppliers.filter(supplier => {
-//     const supplierName = supplier.name?.toLowerCase() ?? '';
-//     const supplierContact = supplier.contactPerson?.toLowerCase() ?? '';
-//     const matchesSearch =
-//       normalizedSearch.length === 0 ||
-//       supplierName.includes(normalizedSearch) ||
-//       supplierContact.includes(normalizedSearch);
-//     const supplierCategory = supplier.category?.trim().toLowerCase() ?? '';
-//     const matchesCategory =
-//       normalizedSelectedCategory === 'all' ||
-//       supplierCategory === normalizedSelectedCategory;
-//     return matchesSearch && matchesCategory;
-//   });
-
-//   const handleAddSupplier = () => {
-//     const name = newSupplier.name.trim();
-//     const category = newSupplier.category.trim();
-//     const contactPerson = newSupplier.contactPerson.trim();
-//     const phone = newSupplier.phone.trim();
-
-//     if (!name || !category || !contactPerson || !phone) {
-//       addNotification({
-//         title: 'Missing Information',
-//         message: 'Please fill in all required fields',
-//         type: 'error'
-//       });
-//       return;
-//     }
-    
-//     const supplier = {
-//       id: Date.now().toString(),
-//       ...newSupplier,
-//       name,
-//       category,
-//       contactPerson,
-//       phone,
-//       email: newSupplier.email.trim(),
-//       address: newSupplier.address.trim(),
-//       gstNumber: newSupplier.gstNumber.trim(),
-//       rating: 0,
-//       status: 'active' as const,
-//       totalOrders: 0,
-//       totalAmount: 0,
-//       lastOrderDate: new Date().toISOString().split('T')[0]
-//     };
-//     addSupplier(supplier);
-//     setNewSupplier(createEmptySupplierForm());
-//     setIsAddDialogOpen(false);
-//     addNotification({
-//       title: 'Supplier Added',
-//       message: `${supplier.name} has been added successfully`,
-//       type: 'success'
-//     });
-//   };
-
-//   const handleEditSupplier = (supplier: Supplier) => {
-//     setEditingSupplier(supplier);
-//     setEditSupplier({
-//       ...createEmptyEditSupplierForm(),
-//       name: supplier.name ?? '',
-//       category: supplier.category ?? '',
-//       contactPerson: supplier.contactPerson ?? '',
-//       phone: supplier.phone ?? '',
-//       email: supplier.email ?? '',
-//       address: supplier.address ?? '',
-//       gstNumber: supplier.gstNumber ?? '',
-//       creditDays: supplier.creditDays ?? 0,
-//       status: supplier.status
-//     });
-//     setIsEditDialogOpen(true);
-//   };
-
-//   const handleUpdateSupplier = () => {
-//     if (!editingSupplier) return;
-    
-//     const name = editSupplier.name.trim();
-//     const category = editSupplier.category.trim();
-//     const contactPerson = editSupplier.contactPerson.trim();
-//     const phone = editSupplier.phone.trim();
-
-//     if (!name || !category || !contactPerson || !phone) {
-//       addNotification({
-//         title: 'Missing Information',
-//         message: 'Please fill in all required fields',
-//         type: 'error'
-//       });
-//       return;
-//     }
-    
-//     updateSupplier(editingSupplier.id, {
-//       ...editSupplier,
-//       name,
-//       category,
-//       contactPerson,
-//       phone,
-//       email: editSupplier.email.trim(),
-//       address: editSupplier.address.trim(),
-//       gstNumber: editSupplier.gstNumber.trim()
-//     });
-//     setIsEditDialogOpen(false);
-//     setEditingSupplier(null);
-//     addNotification({
-//       title: 'Supplier Updated',
-//       message: `${editSupplier.name} has been updated successfully`,
-//       type: 'success'
-//     });
-//   };
-
-//   const handleDeleteSupplier = (supplierId: string) => {
-//     const supplier = suppliers.find(s => s.id === supplierId);
-//     if (confirm(`Are you sure you want to delete ${supplier?.name}?`)) {
-//       deleteSupplier(supplierId);
-//       addNotification({
-//         title: 'Supplier Deleted',
-//         message: `${supplier?.name} has been removed`,
-//         type: 'success'
-//       });
-//     }
-//   };
-
-//   const handleAddOrderItem = () => {
-//     if (!currentOrderItem.itemName || currentOrderItem.quantity <= 0 || currentOrderItem.rate <= 0) {
-//       addNotification({
-//         title: 'Invalid Item',
-//         message: 'Please fill in all item details with valid values',
-//         type: 'error'
-//       });
-//       return;
-//     }
-
-//     const amount = currentOrderItem.quantity * currentOrderItem.rate;
-//     const item: PurchaseOrderItemDraft = { ...currentOrderItem, amount };
-//     setNewOrder(prev => ({
-//       ...prev,
-//       items: [...prev.items, item]
-//     }));
-
-//     setCurrentOrderItem(createEmptyPurchaseOrderItem());
-
-//     addNotification({
-//       title: 'Item Added',
-//       message: `${currentOrderItem.itemName} added to order`,
-//       type: 'success'
-//     });
-//   };
-
-//   const handleRemoveOrderItem = (index: number) => {
-//     const item = newOrder.items[index];
-//     setNewOrder(prev => ({
-//       ...prev,
-//       items: prev.items.filter((_, i) => i !== index)
-//     }));
-//     addNotification({
-//       title: 'Item Removed',
-//       message: `${item.itemName} removed from order`,
-//       type: 'info'
-//     });
-//   };
-
-//   const handleCreateOrder = () => {
-//     if (!newOrder.supplierId || !newOrder.expectedDate || newOrder.items.length === 0) {
-//       addNotification({
-//         title: 'Incomplete Order',
-//         message: 'Please select supplier, expected date, and add at least one item',
-//         type: 'error'
-//       });
-//       return;
-//     }
-
-//     const totalAmount = newOrder.items.reduce((sum, item) => sum + item.amount, 0);
-    
-//     const order: PurchaseOrder = {
-//       id: `PO-${Date.now()}`,
-//       supplierId: newOrder.supplierId,
-//       supplierName: newOrder.supplierName,
-//       orderDate: new Date().toISOString().split('T')[0],
-//       expectedDate: newOrder.expectedDate,
-//       status: 'pending',
-//       items: newOrder.items,
-//       totalAmount,
-//       notes: newOrder.notes,
-//       deliveredDate: undefined
-//     };
-
-//     addPurchaseOrder(order);
-    
-//     // Reset form
-//     setNewOrder(createEmptyPurchaseOrderDraft());
-    
-//     setIsAddOrderDialogOpen(false);
-//     addNotification({
-//       title: 'Purchase Order Created',
-//       message: `Order ${order.id} for ${order.supplierName} created successfully`,
-//       type: 'success'
-//     });
-//   };
-
-//   const handleSupplierSelect = (supplierId: string) => {
-//     const supplier = suppliers.find(s => s.id === supplierId);
-//     if (supplier) {
-//       setNewOrder(prev => ({
-//         ...prev,
-//         supplierId,
-//         supplierName: supplier.name
-//       }));
-//     }
-//   };
-
-//   const getStatusColor = (status: string) => {
-//     switch (status) {
-//       case 'active': return 'bg-green-100 text-green-700';
-//       case 'inactive': return 'bg-red-100 text-red-700';
-//       case 'pending': return 'bg-yellow-100 text-yellow-700';
-//       case 'confirmed': return 'bg-blue-100 text-blue-700';
-//       case 'shipped': return 'bg-purple-100 text-purple-700';
-//       case 'delivered': return 'bg-green-100 text-green-700';
-//       case 'cancelled': return 'bg-red-100 text-red-700';
-//       default: return 'bg-gray-100 text-gray-700';
-//     }
-//   };
-
-//   return (
-//     <div className="p-4 max-w-7xl mx-auto space-y-6">
-//       <div className="flex items-center justify-between">
-//         <div>
-//           <h1 className="flex items-center gap-2">
-//             <Truck className="text-primary" size={24} />
-//             Supplier Management
-//           </h1>
-//           <p className="text-muted-foreground mt-1">Manage suppliers and purchase orders</p>
-//         </div>
-//       </div>
-
-//       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-//         <TabsList className="grid grid-cols-3 w-full max-w-md">
-//           <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
-//           <TabsTrigger value="orders">Purchase Orders</TabsTrigger>
-//           <TabsTrigger value="analytics">Analytics</TabsTrigger>
-//         </TabsList>
-
-//         <TabsContent value="suppliers" className="space-y-6">
-//           {/* Controls */}
-//           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-//             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-//               <div className="relative">
-//                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
-//                 <Input
-//                   placeholder="Search suppliers..."
-//                   value={searchTerm}
-//                   onChange={(e) => setSearchTerm(e.target.value)}
-//                   className="pl-10 w-full sm:w-64"
-//                 />
-//               </div>
-//               <Select value={selectedCategory} onValueChange={(value: string) => setSelectedCategory(value)}>
-//                 <SelectTrigger className="w-full sm:w-48">
-//                   <Filter size={18} />
-//                   <SelectValue placeholder="All Categories" />
-//                 </SelectTrigger>
-//                 <SelectContent>
-//                   <SelectItem value="all">All Categories</SelectItem>
-//                   {supplierCategoryOptions.length === 0 ? (
-//                     <SelectItem value="__no_supplier_categories" disabled>
-//                       No supplier categories available
-//                     </SelectItem>
-//                   ) : (
-//                     supplierCategoryOptions.map(name => (
-//                       <SelectItem key={name} value={name}>
-//                         {name}
-//                       </SelectItem>
-//                     ))
-//                   )}
-//                 </SelectContent>
-//               </Select>
-//             </div>
-
-//             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-//               <DialogTrigger asChild>
-//                 <Button>
-//                   <Plus size={18} />
-//                   Add Supplier
-//                 </Button>
-//               </DialogTrigger>
-//               <DialogContent className="max-w-2xl">
-//                 <DialogHeader>
-//                   <DialogTitle>Add New Supplier</DialogTitle>
-//                   <DialogDescription>
-//                     Add a new supplier to your vendor network
-//                   </DialogDescription>
-//                 </DialogHeader>
-//                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                   <div className="space-y-2">
-//                     <Label htmlFor="name">Company Name *</Label>
-//                     <Input
-//                       id="name"
-//                       value={newSupplier.name}
-//                       onChange={(event) => setNewSupplier(prev => ({ ...prev, name: event.target.value }))}
-//                       placeholder="Enter company name"
-//                     />
-//                   </div>
-//                   <div className="space-y-2">
-//                     <Label id="add-supplier-category-label" htmlFor="add-supplier-category-input">Category *</Label>
-//                     {hasSupplierCategoryOptions && (
-//                       <Select
-//                         value={newSupplierCategorySelectValue}
-//                         onValueChange={(value: string) =>
-//                           setNewSupplier(prev => ({ ...prev, category: value }))
-//                         }
-//                       >
-//                         <SelectTrigger aria-labelledby="add-supplier-category-label">
-//                           <SelectValue placeholder="Select category" />
-//                         </SelectTrigger>
-//                         <SelectContent>
-//                           {supplierCategoryOptions.map(name => (
-//                             <SelectItem key={name} value={name}>
-//                               {name}
-//                             </SelectItem>
-//                           ))}
-//                         </SelectContent>
-//                       </Select>
-//                     )}
-//                     {!hasSupplierCategoryOptions && (
-//                       <p className="text-xs text-muted-foreground">
-//                         No supplier categories found. Type a new category below to get started.
-//                       </p>
-//                     )}
-//                     {hasSupplierCategoryOptions && (
-//                       <p className="text-xs text-muted-foreground">
-//                         Select an existing category or type a new one below.
-//                       </p>
-//                     )}
-//                     <Input
-//                       id="add-supplier-category-input"
-//                       value={newSupplier.category}
-//                       onChange={(event) =>
-//                         setNewSupplier(prev => ({ ...prev, category: event.target.value }))
-//                       }
-//                       placeholder={hasSupplierCategoryOptions ? 'Or type a new category' : 'Enter category name'}
-//                     />
-//                   </div>
-//                   <div className="space-y-2">
-//                     <Label htmlFor="contactPerson">Contact Person *</Label>
-//                     <Input
-//                       id="contactPerson"
-//                       value={newSupplier.contactPerson}
-//                       onChange={(event) => setNewSupplier(prev => ({ ...prev, contactPerson: event.target.value }))}
-//                       placeholder="Enter contact person name"
-//                     />
-//                   </div>
-//                   <div className="space-y-2">
-//                     <Label htmlFor="phone">Phone Number *</Label>
-//                     <Input
-//                       id="phone"
-//                       value={newSupplier.phone}
-//                       onChange={(event) => setNewSupplier(prev => ({ ...prev, phone: event.target.value }))}
-//                       placeholder="+91 XXXXX XXXXX"
-//                     />
-//                   </div>
-//                   <div className="space-y-2">
-//                     <Label htmlFor="email">Email</Label>
-//                     <Input
-//                       id="email"
-//                       type="email"
-//                       value={newSupplier.email}
-//                       onChange={(event) => setNewSupplier(prev => ({ ...prev, email: event.target.value }))}
-//                       placeholder="email@example.com"
-//                     />
-//                   </div>
-//                   <div className="space-y-2">
-//                     <Label htmlFor="creditDays">Credit Days</Label>
-//                     <Input
-//                       id="creditDays"
-//                       type="number"
-//                       value={newSupplier.creditDays}
-//                       onChange={(event) => setNewSupplier(prev => ({ ...prev, creditDays: Number.parseInt(event.target.value, 10) || 0 }))}
-//                       placeholder="0"
-//                     />
-//                   </div>
-//                   <div className="space-y-2 md:col-span-2">
-//                     <Label htmlFor="address">Address</Label>
-//                     <Textarea
-//                       id="address"
-//                       value={newSupplier.address}
-//                       onChange={(event) => setNewSupplier(prev => ({ ...prev, address: event.target.value }))}
-//                       placeholder="Enter complete address"
-//                       rows={2}
-//                     />
-//                   </div>
-//                   <div className="space-y-2">
-//                     <Label htmlFor="gstNumber">GST Number</Label>
-//                     <Input
-//                       id="gstNumber"
-//                       value={newSupplier.gstNumber}
-//                       onChange={(event) => setNewSupplier(prev => ({ ...prev, gstNumber: event.target.value }))}
-//                       placeholder="GST Number (optional)"
-//                     />
-//                   </div>
-//                 </div>
-//                 <div className="flex justify-end gap-3 pt-4">
-//                   <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-//                     Cancel
-//                   </Button>
-//                   <Button onClick={handleAddSupplier}>
-//                     Add Supplier
-//                   </Button>
-//                 </div>
-//               </DialogContent>
-//             </Dialog>
-//           </div>
-
-//           {/* Suppliers Grid */}
-//           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-//             {filteredSuppliers.map((supplier) => (
-//               <Card key={supplier.id} className="hover:shadow-md transition-shadow">
-//                 <CardHeader className="pb-3">
-//                   <div className="flex items-start justify-between">
-//                     <div>
-//                       <CardTitle className="text-lg">{supplier.name}</CardTitle>
-//                       <p className="text-sm text-muted-foreground">{supplier.category}</p>
-//                     </div>
-//                     <Badge className={getStatusColor(supplier.status)} variant="secondary">
-//                       {supplier.status}
-//                     </Badge>
-//                   </div>
-//                 </CardHeader>
-//                 <CardContent className="space-y-3">
-//                   <div className="flex items-center gap-2 text-sm">
-//                     <Users size={16} className="text-muted-foreground" />
-//                     <span>{supplier.contactPerson}</span>
-//                   </div>
-//                   <div className="flex items-center gap-2 text-sm">
-//                     <Phone size={16} className="text-muted-foreground" />
-//                     <span>{supplier.phone}</span>
-//                   </div>
-//                   <div className="flex items-center gap-2 text-sm">
-//                     <Mail size={16} className="text-muted-foreground" />
-//                     <span className="truncate">{supplier.email}</span>
-//                   </div>
-//                   <div className="flex items-center gap-2 text-sm">
-//                     <Star size={16} className="text-yellow-500" />
-//                     <span>{supplier.rating}/5.0</span>
-//                     <span className="text-muted-foreground">
-//                       ({supplier.totalOrders} orders)
-//                     </span>
-//                   </div>
-//                   <div className="flex items-center justify-between pt-2">
-//                     <div className="text-sm">
-//                       <div className="font-medium">₹{supplier.totalAmount.toLocaleString()}</div>
-//                       <div className="text-muted-foreground">Total Business</div>
-//                     </div>
-//                     <div className="flex gap-2">
-//                       <Button 
-//                         variant="ghost" 
-//                         size="sm"
-//                         onClick={() => handleEditSupplier(supplier)}
-//                       >
-//                         <Edit size={16} />
-//                       </Button>
-//                       <Button 
-//                         variant="ghost" 
-//                         size="sm" 
-//                         className="text-destructive hover:text-destructive"
-//                         onClick={() => handleDeleteSupplier(supplier.id)}
-//                       >
-//                         <Trash2 size={16} />
-//                       </Button>
-//                     </div>
-//                   </div>
-//                 </CardContent>
-//               </Card>
-//             ))}
-//           </div>
-//         </TabsContent>
-
-//         <TabsContent value="orders" className="space-y-6">
-//           <div className="flex items-center justify-between">
-//             <h2>Purchase Orders</h2>
-//             <Button onClick={() => setIsAddOrderDialogOpen(true)}>
-//               <Plus size={18} />
-//               Create Order
-//             </Button>
-//           </div>
-
-//           <div className="space-y-4">
-//             {purchaseOrders.map((order) => (
-//               <Card key={order.id}>
-//                 <CardHeader>
-//                   <div className="flex items-center justify-between">
-//                     <div>
-//                       <CardTitle className="text-lg">{order.id}</CardTitle>
-//                       <p className="text-sm text-muted-foreground">{order.supplierName}</p>
-//                     </div>
-//                     <Badge className={getStatusColor(order.status)} variant="secondary">
-//                       {order.status}
-//                     </Badge>
-//                   </div>
-//                 </CardHeader>
-//                 <CardContent>
-//                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-//                     <div className="flex items-center gap-2 text-sm">
-//                       <Calendar size={16} className="text-muted-foreground" />
-//                       <span>Order: {new Date(order.orderDate).toLocaleDateString()}</span>
-//                     </div>
-//                     <div className="flex items-center gap-2 text-sm">
-//                       <Clock size={16} className="text-muted-foreground" />
-//                       <span>Expected: {new Date(order.expectedDate).toLocaleDateString()}</span>
-//                     </div>
-//                     <div className="flex items-center gap-2 text-sm">
-//                       <Package size={16} className="text-muted-foreground" />
-//                       <span>{order.items.length} items</span>
-//                     </div>
-//                     <div className="flex items-center gap-2 text-sm">
-//                       <IndianRupee size={16} className="text-muted-foreground" />
-//                       <span className="font-medium">₹{order.totalAmount.toLocaleString()}</span>
-//                     </div>
-//                   </div>
-//                   <div className="border rounded-lg overflow-hidden">
-//                     <table className="w-full text-sm">
-//                       <thead className="bg-muted">
-//                         <tr>
-//                           <th className="text-left p-2">Item</th>
-//                           <th className="text-right p-2">Qty</th>
-//                           <th className="text-right p-2">Rate</th>
-//                           <th className="text-right p-2">Amount</th>
-//                         </tr>
-//                       </thead>
-//                       <tbody>
-//                         {order.items.map((item, index) => (
-//                           <tr key={index} className="border-t">
-//                             <td className="p-2">{item.itemName}</td>
-//                             <td className="text-right p-2">{item.quantity} {item.unit}</td>
-//                             <td className="text-right p-2">₹{item.rate}</td>
-//                             <td className="text-right p-2 font-medium">₹{item.amount.toLocaleString()}</td>
-//                           </tr>
-//                         ))}
-//                       </tbody>
-//                     </table>
-//                   </div>
-//                 </CardContent>
-//               </Card>
-//             ))}
-//           </div>
-//         </TabsContent>
-
-//         <TabsContent value="analytics" className="space-y-6">
-//           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-//             <Card>
-//               <CardContent className="p-6">
-//                 <div className="flex items-center justify-between">
-//                   <div>
-//                     <p className="text-sm text-muted-foreground">Total Suppliers</p>
-//                     <p className="font-semibold">{suppliers.length}</p>
-//                   </div>
-//                   <Truck className="text-primary" size={24} />
-//                 </div>
-//               </CardContent>
-//             </Card>
-//             <Card>
-//               <CardContent className="p-6">
-//                 <div className="flex items-center justify-between">
-//                   <div>
-//                     <p className="text-sm text-muted-foreground">Active Orders</p>
-//                     <p className="font-semibold">{purchaseOrders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length}</p>
-//                   </div>
-//                   <Package className="text-primary" size={24} />
-//                 </div>
-//               </CardContent>
-//             </Card>
-//             <Card>
-//               <CardContent className="p-6">
-//                 <div className="flex items-center justify-between">
-//                   <div>
-//                     <p className="text-sm text-muted-foreground">Monthly Spend</p>
-//                     <p className="font-semibold">₹2,45,000</p>
-//                   </div>
-//                   <IndianRupee className="text-primary" size={24} />
-//                 </div>
-//               </CardContent>
-//             </Card>
-//             <Card>
-//               <CardContent className="p-6">
-//                 <div className="flex items-center justify-between">
-//                   <div>
-//                     <p className="text-sm text-muted-foreground">Top Rated</p>
-//                     <p className="font-semibold">4.5/5.0</p>
-//                   </div>
-//                   <Star className="text-primary" size={24} />
-//                 </div>
-//               </CardContent>
-//             </Card>
-//           </div>
-//         </TabsContent>
-//       </Tabs>
-
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppContext, Supplier, PurchaseOrder } from "../contexts/AppContext";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
@@ -892,6 +139,32 @@ export function SupplierManagement() {
   const [currentOrderItem, setCurrentOrderItem] =
     useState<PurchaseOrderItemDraft>(createEmptyPurchaseOrderItem());
 
+  const [needsScroll, setNeedsScroll] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      setNeedsScroll(el.scrollHeight > el.clientHeight + 4);
+    };
+
+    measure();
+
+    const resizeObserver = typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(() => measure())
+      : null;
+
+    if (resizeObserver) resizeObserver.observe(el);
+    window.addEventListener("resize", measure);
+
+    return () => {
+      window.removeEventListener("resize", measure);
+      resizeObserver?.disconnect();
+    };
+  }, []);
+
   const supplierCategories = getCategoriesByType("supplier");
 
   const supplierCategoryOptions = useMemo<string[]>(() => {
@@ -964,6 +237,7 @@ export function SupplierManagement() {
         address: newSupplier.address.trim(),
         gstNumber: newSupplier.gstNumber.trim(),
         creditDays: newSupplier.creditDays,
+        status: "active",
       };
       const created = await addSupplier(payload);
 
@@ -1071,14 +345,28 @@ export function SupplierManagement() {
   };
 
   const handleAddOrderItem = () => {
-    if (
-      !currentOrderItem.itemName ||
-      currentOrderItem.quantity <= 0 ||
-      currentOrderItem.rate <= 0
-    ) {
+    if (!currentOrderItem.itemName || currentOrderItem.itemName.trim().length === 0) {
       addNotification({
         title: "Invalid Item",
-        message: "Please fill in all item details with valid values",
+        message: "Item name is required",
+        type: "error",
+      });
+      return;
+    }
+
+    if (currentOrderItem.quantity <= 0 || Number.isNaN(currentOrderItem.quantity)) {
+      addNotification({
+        title: "Invalid Item",
+        message: "Quantity must be greater than zero",
+        type: "error",
+      });
+      return;
+    }
+
+    if (currentOrderItem.rate <= 0 || Number.isNaN(currentOrderItem.rate)) {
+      addNotification({
+        title: "Invalid Item",
+        message: "Rate must be greater than zero",
         type: "error",
       });
       return;
@@ -1136,6 +424,7 @@ export function SupplierManagement() {
         supplierId: newOrder.supplierId,
         invoiceNumber: "", // optional or generated on backend
         date: new Date().toISOString(),
+        expectedDate: newOrder.expectedDate,
         totalAmount,
         notes: newOrder.notes,
         items: newOrder.items.map((item) => ({
@@ -1206,7 +495,7 @@ export function SupplierManagement() {
   );
 
   return (
-    <div className="p-4 max-w-7xl mx-auto space-y-6">
+    <div ref={containerRef} className="p-4 max-w-7xl mx-auto space-y-6 h-full overflow-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="flex items-center gap-2">
@@ -1281,8 +570,96 @@ export function SupplierManagement() {
                     Add a new supplier to your vendor network
                   </DialogDescription>
                 </DialogHeader>
-                {/* form fields remain same as before */}
-                {/* ... keep your existing JSX form body from the original file ... */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="newName">Company Name *</Label>
+                    <Input
+                      id="newName"
+                      value={newSupplier.name}
+                      onChange={(event) => setNewSupplier(prev => ({ ...prev, name: event.target.value }))}
+                      placeholder="Supplier name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newCategory">Category *</Label>
+                    <Input
+                      id="newCategory"
+                      value={newSupplier.category}
+                      onChange={(event) => setNewSupplier(prev => ({ ...prev, category: event.target.value }))}
+                      placeholder="e.g., Vegetables"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newContactPerson">Contact Person *</Label>
+                    <Input
+                      id="newContactPerson"
+                      value={newSupplier.contactPerson}
+                      onChange={(event) => setNewSupplier(prev => ({ ...prev, contactPerson: event.target.value }))}
+                      placeholder="Primary contact"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newPhone">Phone *</Label>
+                    <Input
+                      id="newPhone"
+                      value={newSupplier.phone}
+                      onChange={(event) => setNewSupplier(prev => ({ ...prev, phone: event.target.value }))}
+                      placeholder="Phone number"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newEmail">Email</Label>
+                    <Input
+                      id="newEmail"
+                      type="email"
+                      value={newSupplier.email}
+                      onChange={(event) => setNewSupplier(prev => ({ ...prev, email: event.target.value }))}
+                      placeholder="name@company.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newGst">GST Number</Label>
+                    <Input
+                      id="newGst"
+                      value={newSupplier.gstNumber}
+                      onChange={(event) => setNewSupplier(prev => ({ ...prev, gstNumber: event.target.value }))}
+                      placeholder="GSTIN"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newCreditDays">Credit Days</Label>
+                    <Input
+                      id="newCreditDays"
+                      type="number"
+                      value={newSupplier.creditDays}
+                      onChange={(event) => setNewSupplier(prev => ({ ...prev, creditDays: Number.parseInt(event.target.value, 10) || 0 }))}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="newAddress">Address</Label>
+                    <Textarea
+                      id="newAddress"
+                      value={newSupplier.address}
+                      onChange={(event) => setNewSupplier(prev => ({ ...prev, address: event.target.value }))}
+                      rows={2}
+                      placeholder="Full address"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2 md:col-span-2 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsAddDialogOpen(false);
+                        setNewSupplier(createEmptySupplierForm());
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button onClick={handleAddSupplier}>Save Supplier</Button>
+                  </div>
+                </div>
               </DialogContent>
             </Dialog>
           </div>
@@ -1322,15 +699,15 @@ export function SupplierManagement() {
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Star size={16} className="text-yellow-500" />
-                    <span>{supplier.rating}/5.0</span>
+                    <span>{(supplier.rating ?? 0).toFixed(1)}/5.0</span>
                     <span className="text-muted-foreground">
-                      ({supplier.totalOrders} orders)
+                      ({supplier.totalOrders ?? 0} orders)
                     </span>
                   </div>
                   <div className="flex items-center justify-between pt-2">
                     <div className="text-sm">
                       <div className="font-medium">
-                        ₹{supplier.totalAmount.toLocaleString()}
+                        ₹{(supplier.totalAmount ?? 0).toLocaleString()}
                       </div>
                       <div className="text-muted-foreground">Total Business</div>
                     </div>
@@ -1396,14 +773,14 @@ export function SupplierManagement() {
                       />
                       <span>
                         Order:{" "}
-                        {new Date(order.orderDate).toLocaleDateString()}
+                        {order.orderDate ? new Date(order.orderDate).toLocaleDateString() : "—"}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                       <Clock size={16} className="text-muted-foreground" />
                       <span>
                         Expected:{" "}
-                        {new Date(order.expectedDate).toLocaleDateString()}
+                        {order.expectedDate ? new Date(order.expectedDate).toLocaleDateString() : "—"}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
@@ -1419,7 +796,7 @@ export function SupplierManagement() {
                         className="text-muted-foreground"
                       />
                       <span className="font-medium">
-                        ₹{order.totalAmount.toLocaleString()}
+                        ₹{(order.totalAmount ?? 0).toLocaleString()}
                       </span>
                     </div>
                   </div>

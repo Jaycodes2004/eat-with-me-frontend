@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppContext } from '../contexts/AppContext';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -74,7 +74,6 @@ export function StaffManagement() {
   const [selectAllNewStaffPermissions, setSelectAllNewStaffPermissions] = useState(false);
   const [selectAllNewStaffDashboard, setSelectAllNewStaffDashboard] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingStaff, setEditingStaff] = useState<any>(null);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   
@@ -93,6 +92,32 @@ export function StaffManagement() {
     shiftType: 'Morning',
     openingCash: ''
   });
+
+  const [needsScroll, setNeedsScroll] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      setNeedsScroll(el.scrollHeight > el.clientHeight + 4);
+    };
+
+    measure();
+
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => measure())
+      : null;
+
+    if (resizeObserver) resizeObserver.observe(el);
+    window.addEventListener('resize', measure);
+
+    return () => {
+      window.removeEventListener('resize', measure);
+      resizeObserver?.disconnect();
+    };
+  }, []);
 
   const permissions = useMemo(() => ([
     { id: 'dashboard', label: 'Dashboard', description: 'Access to main dashboard and overview', category: 'core' },
@@ -146,7 +171,7 @@ export function StaffManagement() {
       case 'Cashier':
         return ['dashboard', 'pos', 'reports', 'customers', 'loyalty', 'online-orders'];
       case 'Waiter':
-        return ['dashboard', 'pos', 'tables', 'customers', 'reservation_management', 'qr-ordering', 'online-orders'];
+        return ['dashboard', 'pos', 'tables', 'customers', 'reservations', 'qr-ordering', 'online-orders'];
       case 'Chef':
         return ['dashboard', 'kitchen', 'inventory', 'menu', 'suppliers', 'online-orders'];
       case 'Helper':
@@ -582,7 +607,7 @@ export function StaffManagement() {
   };
 
   return (
-    <div className="p-4 space-y-6">
+    <div ref={containerRef} className="p-4 space-y-6 h-full overflow-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
@@ -617,7 +642,7 @@ export function StaffManagement() {
                 </div>
                 <div>
                   <Label htmlFor="role">Role</Label>
-                  <Select value={newStaff.role} onValueChange={(value) => updateNewStaffField('role', value)}>
+                  <Select value={newStaff.role} onValueChange={(value: string) => updateNewStaffField('role', value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
@@ -691,7 +716,7 @@ export function StaffManagement() {
                       <Checkbox 
                         id="select-all-permissions-new"
                         checked={selectAllNewStaffPermissions}
-                        onCheckedChange={(checked) => handleSelectAllNewStaffPermissions(Boolean(checked))}
+                        onCheckedChange={(checked: boolean) => handleSelectAllNewStaffPermissions(Boolean(checked))}
                       />
                       <Label htmlFor="select-all-permissions-new" className="text-sm">Select All</Label>
                     </div>
@@ -710,7 +735,7 @@ export function StaffManagement() {
                                 <Checkbox
                                   id={perm.id}
                                   checked={newStaff.permissions.includes(perm.id)}
-                                  onCheckedChange={(checked) => handleNewStaffPermissionChange(perm.id, Boolean(checked))}
+                                  onCheckedChange={(checked: boolean) => handleNewStaffPermissionChange(perm.id, Boolean(checked))}
                                 />
                                 <div className="flex-1 min-w-0">
                                   <Label htmlFor={perm.id} className="text-sm font-medium">{perm.label}</Label>
@@ -732,7 +757,7 @@ export function StaffManagement() {
                       <Checkbox 
                         id="select-all-dashboard-new"
                         checked={selectAllNewStaffDashboard}
-                        onCheckedChange={(checked) => handleSelectAllNewStaffDashboard(Boolean(checked))}
+                        onCheckedChange={(checked: boolean) => handleSelectAllNewStaffDashboard(Boolean(checked))}
                       />
                       <Label htmlFor="select-all-dashboard-new" className="text-sm">Select All</Label>
                     </div>
@@ -746,7 +771,7 @@ export function StaffManagement() {
                         <Checkbox
                           id={`dashboard-${perm.id}`}
                           checked={newStaff.dashboardModules.includes(perm.id)}
-                          onCheckedChange={(checked) => handleNewStaffDashboardChange(perm.id, Boolean(checked))}
+                          onCheckedChange={(checked: boolean) => handleNewStaffDashboardChange(perm.id, Boolean(checked))}
                         />
                         <div className="flex-1 min-w-0">
                           <Label htmlFor={`dashboard-${perm.id}`} className="text-sm font-medium">{perm.label}</Label>
@@ -850,7 +875,10 @@ export function StaffManagement() {
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Switch checked={staffMember.isActive} />
+                      <Switch
+                        checked={!!staffMember.isActive}
+                        onCheckedChange={(checked: boolean) => updateStaff(staffMember.id, { isActive: Boolean(checked) })}
+                      />
                       <Button variant="ghost" size="sm">
                         <Edit className="w-4 h-4" />
                       </Button>
@@ -864,7 +892,7 @@ export function StaffManagement() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Salary:</span>
-                      <span>₹{staffMember.salary.toLocaleString()}</span>
+                      <span>₹{(staffMember.salary ?? 0).toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Status:</span>
@@ -881,7 +909,7 @@ export function StaffManagement() {
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Performance:</span>
                       <div className="flex items-center space-x-1">
-                        <span>{staffMember.performance.customerRating}/5</span>
+                        <span>{staffMember.performance?.customerRating ?? '-'}{staffMember.performance ? '/5' : ''}</span>
                         <Award className="w-3 h-3 text-yellow-500" />
                       </div>
                     </div>
@@ -939,7 +967,7 @@ export function StaffManagement() {
                     <Label>Shift Type</Label>
                     <Select
                       value={newShiftDetails.shiftType}
-                      onValueChange={(value) => setNewShiftDetails(prev => ({ ...prev, shiftType: value as 'Morning' | 'Evening' | 'Night' }))}
+                      onValueChange={(value: string) => setNewShiftDetails(prev => ({ ...prev, shiftType: value as 'Morning' | 'Evening' | 'Night' }))}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select shift" />
@@ -1081,7 +1109,7 @@ export function StaffManagement() {
                       <SelectValue placeholder="Choose staff member" />
                     </SelectTrigger>
                     <SelectContent>
-                      {staff.filter(s => s.isActive).map(staffMember => (
+                      {staff.filter(s => s.isActive !== false).map(staffMember => (
                         <SelectItem key={staffMember.id} value={staffMember.id}>
                           {staffMember.name} - {staffMember.role}
                         </SelectItem>
@@ -1266,11 +1294,11 @@ export function StaffManagement() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="text-center p-3 bg-blue-50 rounded-lg">
-                        <div className="text-2xl font-bold text-blue-600">{staffMember.performance.ordersHandled}</div>
+                        <div className="text-2xl font-bold text-blue-600">{staffMember.performance?.ordersHandled ?? 0}</div>
                         <div className="text-xs text-blue-700">Orders Handled</div>
                       </div>
                       <div className="text-center p-3 bg-green-50 rounded-lg">
-                        <div className="text-2xl font-bold text-green-600">{staffMember.performance.avgOrderTime}m</div>
+                        <div className="text-2xl font-bold text-green-600">{staffMember.performance?.avgOrderTime ?? 0}m</div>
                         <div className="text-xs text-green-700">Avg Order Time</div>
                       </div>
                     </div>
@@ -1279,19 +1307,19 @@ export function StaffManagement() {
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-muted-foreground">Customer Rating</span>
                         <div className="flex items-center space-x-1">
-                          <span className="font-medium">{staffMember.performance.customerRating}/5</span>
+                          <span className="font-medium">{staffMember.performance?.customerRating ?? '-'}{staffMember.performance ? '/5' : ''}</span>
                           <Award className="w-4 h-4 text-yellow-500" />
                         </div>
                       </div>
                       
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-muted-foreground">Total Salary</span>
-                        <span className="font-medium">₹{staffMember.salaryDetails.totalSalary.toLocaleString()}</span>
+                        <span className="font-medium">₹{(staffMember.salaryDetails?.totalSalary ?? 0).toLocaleString()}</span>
                       </div>
                       
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-muted-foreground">Join Date</span>
-                        <span className="font-medium">{staffMember.joinDate}</span>
+                        <span className="font-medium">{staffMember.joinDate ?? '—'}</span>
                       </div>
                     </div>
                     
@@ -1300,19 +1328,19 @@ export function StaffManagement() {
                       <div className="text-xs space-y-1">
                         <div className="flex justify-between">
                           <span>Base Salary:</span>
-                          <span>₹{staffMember.salaryDetails.baseSalary.toLocaleString()}</span>
+                          <span>₹{(staffMember.salaryDetails?.baseSalary ?? 0).toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Allowances:</span>
-                          <span>₹{staffMember.salaryDetails.allowances.toLocaleString()}</span>
+                          <span>₹{(staffMember.salaryDetails?.allowances ?? 0).toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Overtime:</span>
-                          <span>₹{staffMember.salaryDetails.overtime.toLocaleString()}</span>
+                          <span>₹{(staffMember.salaryDetails?.overtime ?? 0).toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between text-red-600">
                           <span>Deductions:</span>
-                          <span>-₹{staffMember.salaryDetails.deductions.toLocaleString()}</span>
+                          <span>-₹{(staffMember.salaryDetails?.deductions ?? 0).toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
@@ -1323,6 +1351,7 @@ export function StaffManagement() {
           </div>
         </TabsContent>
       </Tabs>
+      {needsScroll && <div className="h-16" aria-hidden />}
     </div>
   );
 }

@@ -112,7 +112,8 @@ export function Settings() {
 					restaurantId:
 						tenantData.restaurantId ||
 						settings.restaurantId ||
-						localRestaurantId,
+						localRestaurantId ||
+						'',
 					name: tenantData.restaurantName || settings.restaurantName,
 					address: tenantData.businessAddress || settings.businessAddress,
 					phone: tenantData.businessPhone || settings.businessPhone,
@@ -142,7 +143,7 @@ export function Settings() {
 					localStorage.getItem('restaurantId');
 
 				setBusinessInfo({
-					restaurantId: settings.restaurantId || localRestaurantId,
+					restaurantId: settings.restaurantId || localRestaurantId || '',
 					name: settings.restaurantName,
 					address: settings.businessAddress,
 					phone: settings.businessPhone,

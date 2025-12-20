@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import type { MouseEvent } from 'react';
 import { useAppContext } from '../contexts/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -89,6 +90,10 @@ export function POSBilling() {
     specialInstructions: ''
   });
 
+  const pendingStatus = 'pending' as any;
+  const [needsScroll, setNeedsScroll] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
   // Get unique categories from menu items
   const categories = [...new Set(contextMenuItems.map(item => item.category))];
   
@@ -125,6 +130,29 @@ export function POSBilling() {
       isOccupied: t.status !== 'free'
     })));
   }, [tables]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      setNeedsScroll(el.scrollHeight > el.clientHeight + 4);
+    };
+
+    measure();
+
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => measure())
+      : null;
+
+    if (resizeObserver) resizeObserver.observe(el);
+    window.addEventListener('resize', measure);
+
+    return () => {
+      window.removeEventListener('resize', measure);
+      resizeObserver?.disconnect();
+    };
+  }, []);
 
   // Set default category to first available category
   useEffect(() => {
@@ -224,7 +252,7 @@ export function POSBilling() {
           status: 'occupied',
           customer: orderDetails.customerName || 'Walk-in Customer',
           timeOccupied: new Date().toLocaleTimeString()
-        });
+        } as any);
       }
       
       // Add pending item to cart after table selection
@@ -264,7 +292,7 @@ export function POSBilling() {
         price: item.price,
         category: item.category
       })),
-      status: 'pending' as const, // Send as pending, not completed
+      status: pendingStatus, // Send as pending, not completed
       orderTime: new Date().toLocaleTimeString('en-US', { 
         hour: '2-digit', 
         minute: '2-digit',
@@ -283,7 +311,7 @@ export function POSBilling() {
     };
 
     // Add the order to context
-    addOrder(newOrder);
+    addOrder(newOrder as any);
     
     // Show notification
     addNotification({
@@ -298,7 +326,7 @@ export function POSBilling() {
   // Load pending orders for a table when clicked for final billing
   const loadTableForBilling = (tableNumber: number) => {
     const tablePendingOrders = orders.filter(
-      order => order.tableNumber === tableNumber && order.status === 'pending'
+      order => order.tableNumber === tableNumber && order.status === pendingStatus
     );
     
     // Allow loading the table even if no pending orders - for adding items to the table
@@ -376,13 +404,13 @@ export function POSBilling() {
     // Mark all pending orders for this table as completed
     if (tableNumber) {
       const tablePendingOrders = orders.filter(
-        order => order.tableNumber === tableNumber && order.status === 'pending'
+        order => order.tableNumber === tableNumber && order.status === pendingStatus
       );
       
       tablePendingOrders.forEach(order => {
         updateOrder(order.id, {
           status: 'completed',
-          paymentMethod: orderDetails.paymentMethod,
+          paymentMethod: orderDetails.paymentMethod as any,
           completedAt: new Date().toLocaleTimeString('en-US', { 
             hour: '2-digit', 
             minute: '2-digit',
@@ -423,7 +451,7 @@ export function POSBilling() {
           status: 'active',
           referralCode: referralCode,
           referralCount: 0
-        });
+        } as any);
         
         if (orderDetails.referralCode) {
           handleReferral(newCustomerId, orderDetails.referralCode);
@@ -448,7 +476,7 @@ export function POSBilling() {
           timeOccupied: undefined,
           guests: undefined,
           lastOrderId: undefined
-        });
+        } as any);
       }
     }
     
@@ -474,7 +502,7 @@ export function POSBilling() {
   // Get occupied tables with pending orders
   const occupiedTables = tables.filter(table => table.status === 'occupied').map(table => {
     const pendingOrders = orders.filter(
-      order => order.tableNumber === table.number && order.status === 'pending'
+      order => order.tableNumber === table.number && order.status === pendingStatus
     );
     const totalAmount = pendingOrders.reduce((sum, order) => sum + order.totalAmount, 0);
     return {
@@ -510,7 +538,7 @@ export function POSBilling() {
     cart.forEach(item => {
       invoiceData['Invoice Details'].push([
         item.name,
-        item.quantity,
+        `${item.quantity}`,
         `${settings.currencySymbol}${item.price.toFixed(2)}`,
         `${settings.currencySymbol}${(item.price * item.quantity).toFixed(2)}`
       ]);
@@ -635,14 +663,14 @@ export function POSBilling() {
     });
 
     doc.setFontSize(12);
-    doc.setFont(undefined, 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.text('Total:', 130, yPosition);
     doc.text(`${settings.currencySymbol}${total.toFixed(2)}`, 165, yPosition);
 
     // Footer
     yPosition += 20;
     doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
+    doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 100, 100);
     doc.text('Thank you for visiting Eat With Me!', pageWidth / 2, yPosition, { align: 'center' });
 
@@ -651,7 +679,7 @@ export function POSBilling() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full bg-background">
+    <div ref={containerRef} className="flex flex-col lg:flex-row h-full bg-background">
       {/* Menu Section */}
       <div className="flex-1 p-4 space-y-4">
         {/* Header with order status */}
@@ -777,7 +805,7 @@ export function POSBilling() {
                     size="sm" 
                     className="w-8 h-8 rounded-full p-0 bg-primary hover:bg-primary/90"
                     disabled={!item.available}
-                    onClick={(e) => {
+                    onClick={(e: MouseEvent<HTMLButtonElement>) => {
                       e.stopPropagation();
                       if (!orderDetails.type) {
                         setPendingItem(item);
@@ -1203,6 +1231,7 @@ export function POSBilling() {
           </div>
         </DialogContent>
       </Dialog>
+      {needsScroll && <div aria-hidden className="h-32 sm:h-40" />}
     </div>
   );
 }

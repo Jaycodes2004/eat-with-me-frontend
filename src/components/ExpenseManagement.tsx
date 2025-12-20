@@ -32,7 +32,19 @@ import {
   Eye,
   Loader2
 } from 'lucide-react';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
+
+type PaymentMethod = 'cash' | 'bank_transfer' | 'credit_card' | 'upi' | 'cheque';
+
+type NewExpenseForm = {
+  title: string;
+  category: string;
+  amount: number;
+  supplierId: string;
+  description: string;
+  paymentMethod: PaymentMethod;
+  recurring: boolean;
+};
 
 export function ExpenseManagement() {
   const { 
@@ -53,7 +65,8 @@ export function ExpenseManagement() {
     getBudgetCategorySpent,
     updateBudgetCategorySpent,
     addCategory,
-    addNotification
+    addNotification,
+    settings,
   } = useAppContext();
   
   const expenseCategories = getCategoriesByType('expense');
@@ -67,14 +80,14 @@ export function ExpenseManagement() {
   const [isEditExpenseDialogOpen, setIsEditExpenseDialogOpen] = useState(false);
   const [isViewExpenseDialogOpen, setIsViewExpenseDialogOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
-  const [newExpense, setNewExpense] = useState({
+  const [newExpense, setNewExpense] = useState<NewExpenseForm>({
     title: '',
     category: '',
     amount: 0,
     supplierId: '',
     description: '',
     paymentMethod: 'cash',
-    recurring: false
+    recurring: false,
   });
   const [newCategory, setNewCategory] = useState({
     name: '',
@@ -105,6 +118,7 @@ export function ExpenseManagement() {
       title: newExpense.title,
       category: newExpense.category,
       amount: newExpense.amount,
+      netAmount: newExpense.amount,
       vendor: selectedSupplier?.name || 'Unknown Supplier',
       description: newExpense.description,
       paymentMethod: newExpense.paymentMethod,
@@ -267,7 +281,7 @@ export function ExpenseManagement() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Total Expenses</p>
-                    <p className="font-semibold">₹{totalExpenses.toLocaleString()}</p>
+                    <p className="font-semibold">{settings.currencySymbol ?? '₹'}{totalExpenses.toLocaleString()}</p>
                   </div>
                   <Receipt className="text-primary" size={24} />
                 </div>
@@ -278,7 +292,7 @@ export function ExpenseManagement() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Paid</p>
-                    <p className="font-semibold text-green-600">₹{paidExpenses.toLocaleString()}</p>
+                    <p className="font-semibold text-green-600">{settings.currencySymbol ?? '₹'}{paidExpenses.toLocaleString()}</p>
                   </div>
                   <TrendingUp className="text-green-500" size={24} />
                 </div>
@@ -289,7 +303,7 @@ export function ExpenseManagement() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Pending</p>
-                    <p className="font-semibold text-yellow-600">₹{pendingExpenses.toLocaleString()}</p>
+                    <p className="font-semibold text-yellow-600">{settings.currencySymbol ?? '₹'}{pendingExpenses.toLocaleString()}</p>
                   </div>
                   <Calendar className="text-yellow-500" size={24} />
                 </div>
@@ -300,7 +314,7 @@ export function ExpenseManagement() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Overdue</p>
-                    <p className="font-semibold text-red-600">₹{overdueExpenses.toLocaleString()}</p>
+                    <p className="font-semibold text-red-600">{settings.currencySymbol ?? '₹'}{overdueExpenses.toLocaleString()}</p>
                   </div>
                   <TrendingDown className="text-red-500" size={24} />
                 </div>
@@ -399,7 +413,7 @@ export function ExpenseManagement() {
                       )}
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-lg">₹{expense.amount.toLocaleString()}</p>
+                      <p className="font-semibold text-lg">{settings.currencySymbol ?? '₹'}{expense.amount.toLocaleString()}</p>
                       <div className="flex gap-2 mt-2">
                         <Button variant="ghost" size="sm" onClick={() => handleViewExpense(expense)}>
                           <Eye size={16} />
@@ -458,8 +472,8 @@ export function ExpenseManagement() {
                   <CardContent>
                     <div className="space-y-3">
                       <div className="flex justify-between text-sm">
-                        <span>Spent: ₹{category.spent.toLocaleString()}</span>
-                        <span>Budget: ₹{category.budget.toLocaleString()}</span>
+                        <span>Spent: {settings.currencySymbol ?? '₹'}{category.spent.toLocaleString()}</span>
+                        <span>Budget: {settings.currencySymbol ?? '₹'}{category.budget.toLocaleString()}</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
@@ -468,7 +482,7 @@ export function ExpenseManagement() {
                         ></div>
                       </div>
                       <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Remaining: ₹{(category.budget - category.spent).toLocaleString()}</span>
+                        <span>Remaining: {settings.currencySymbol ?? '₹'}{(category.budget - category.spent).toLocaleString()}</span>
                         <span>{(100 - spentPercentage).toFixed(1)}% left</span>
                       </div>
                     </div>
@@ -522,7 +536,7 @@ export function ExpenseManagement() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="category">Category *</Label>
-              <Select value={newExpense.category} onValueChange={(value) => setNewExpense({...newExpense, category: value})}>
+              <Select value={newExpense.category} onValueChange={(value: string) => setNewExpense({...newExpense, category: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
@@ -547,7 +561,7 @@ export function ExpenseManagement() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="supplier">Supplier *</Label>
-              <Select value={newExpense.supplierId} onValueChange={(value) => setNewExpense({...newExpense, supplierId: value})}>
+              <Select value={newExpense.supplierId} onValueChange={(value: string) => setNewExpense({...newExpense, supplierId: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select supplier" />
                 </SelectTrigger>
@@ -565,7 +579,7 @@ export function ExpenseManagement() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="paymentMethod">Payment Method</Label>
-              <Select value={newExpense.paymentMethod} onValueChange={(value) => setNewExpense({...newExpense, paymentMethod: value})}>
+              <Select value={newExpense.paymentMethod} onValueChange={(value: string) => setNewExpense({...newExpense, paymentMethod: value as typeof newExpense.paymentMethod})}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select payment method" />
                 </SelectTrigger>
@@ -677,7 +691,7 @@ export function ExpenseManagement() {
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Amount</Label>
-                  <p className="font-semibold text-lg">₹{selectedExpense.amount.toLocaleString()}</p>
+                  <p className="font-semibold text-lg">{settings.currencySymbol ?? '₹'}{selectedExpense.amount.toLocaleString()}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Status</Label>
@@ -770,7 +784,7 @@ export function ExpenseManagement() {
                   <Label htmlFor="editCategory">Category *</Label>
                   <Select 
                     value={selectedExpense.category} 
-                    onValueChange={(value) => setSelectedExpense({...selectedExpense, category: value})}
+                    onValueChange={(value: string) => setSelectedExpense({...selectedExpense, category: value})}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
@@ -790,7 +804,7 @@ export function ExpenseManagement() {
                     id="editAmount"
                     type="number"
                     value={selectedExpense.amount}
-                    onChange={(e) => setSelectedExpense({...selectedExpense, amount: parseFloat(e.target.value) || 0})}
+                    onChange={(e) => setSelectedExpense({...selectedExpense, amount: parseFloat(e.target.value) || 0, netAmount: parseFloat(e.target.value) || 0})}
                     placeholder="0.00"
                   />
                 </div>
@@ -798,7 +812,7 @@ export function ExpenseManagement() {
                   <Label htmlFor="editStatus">Status</Label>
                   <Select 
                     value={selectedExpense.status} 
-                    onValueChange={(value) => setSelectedExpense({...selectedExpense, status: value})}
+                    onValueChange={(value: 'paid' | 'pending' | 'overdue') => setSelectedExpense({...selectedExpense, status: value})}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select status" />
@@ -814,7 +828,7 @@ export function ExpenseManagement() {
                   <Label htmlFor="editPaymentMethod">Payment Method</Label>
                   <Select 
                     value={selectedExpense.paymentMethod} 
-                    onValueChange={(value) => setSelectedExpense({...selectedExpense, paymentMethod: value})}
+                    onValueChange={(value: 'cash' | 'bank_transfer' | 'credit_card' | 'upi' | 'cheque') => setSelectedExpense({...selectedExpense, paymentMethod: value})}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select payment method" />

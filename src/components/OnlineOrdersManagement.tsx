@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -45,13 +45,11 @@ interface OnlineOrder {
     specialInstructions?: string;
   }>;
   totalAmount: number;
-  platformFee: number;
   netAmount: number;
-  status: 'pending' | 'accepted' | 'preparing' | 'ready' | 'dispatched' | 'delivered' | 'cancelled';
+  status: 'new' | 'preparing' | 'ready' | 'served' | 'completed' | 'cancelled';
   orderTime: string;
-  estimatedDeliveryTime: string;
-  deliveryType: 'delivery' | 'pickup';
-  paymentStatus: 'pending' | 'paid' | 'failed';
+  estimatedDeliveryTime?: string;
+  deliveryType: 'delivery' | 'pickup' | 'takeaway' | 'dine-in';
 }
 
 interface OnlineOrdersProps {
@@ -65,31 +63,32 @@ export function OnlineOrdersManagement({ onNavigate, userRole }: OnlineOrdersPro
   const [selectedOrder, setSelectedOrder] = useState<OnlineOrder | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
 
+  const [needsScroll, setNeedsScroll] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
   // Filter context orders for online platforms (not dine-in)
-  const onlineOrders = contextOrders.filter(order => 
-    ['zomato', 'swiggy', 'own-app', 'website'].includes(order.orderSource)
-  ).map(order => ({
-    id: order.id,
-    platform: order.orderSource as 'zomato' | 'swiggy' | 'own-app' | 'website',
-    orderNumber: order.orderNumber || `${order.orderSource.toUpperCase()}-${order.id}`,
-    customerName: order.customerName,
-    customerPhone: order.customerPhone,
-    deliveryAddress: order.deliveryAddress || 'Address not provided',
-    items: order.items.map(item => ({
-      name: item.name,
-      quantity: item.quantity,
-      price: item.price,
-      specialInstructions: item.specialInstructions
-    })),
-    totalAmount: order.totalAmount,
-    platformFee: order.platformFee || 0,
-    netAmount: order.totalAmount - (order.platformFee || 0),
-    status: order.status as OnlineOrder['status'],
-    orderTime: order.orderTime,
-    estimatedDeliveryTime: order.estimatedDeliveryTime || 'Not specified',
-    deliveryType: order.orderType === 'takeaway' ? 'pickup' as const : 'delivery' as const,
-    paymentStatus: order.paymentStatus as 'pending' | 'paid' | 'failed'
-  }));
+  const onlineOrders = contextOrders
+    .filter(order => ['zomato', 'swiggy', 'own-app', 'website'].includes(order.orderSource))
+    .map(order => ({
+      id: order.id,
+      platform: order.orderSource as 'zomato' | 'swiggy' | 'own-app' | 'website',
+      orderNumber: order.orderNumber || `${order.orderSource.toUpperCase()}-${order.id}`,
+      customerName: order.customerName || 'Customer',
+      customerPhone: order.customerPhone || 'N/A',
+      deliveryAddress: order.deliveryAddress || 'Address not provided',
+      items: order.items.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        specialInstructions: item.notes
+      })),
+      totalAmount: order.totalAmount,
+      netAmount: order.totalAmount,
+      status: order.status,
+      orderTime: order.orderTime,
+      estimatedDeliveryTime: order.completedAt,
+      deliveryType: order.deliveryType || 'delivery'
+    }));
 
   // Update order status through context
   const updateOrderStatus = (orderId: string, newStatus: OnlineOrder['status']) => {
@@ -116,34 +115,32 @@ export function OnlineOrdersManagement({ onNavigate, userRole }: OnlineOrdersPro
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: OnlineOrder['status']) => {
     switch (status) {
-      case 'pending': return <Clock className="w-4 h-4 text-yellow-600" />;
-      case 'accepted': return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case 'new': return <Clock className="w-4 h-4 text-yellow-600" />;
       case 'preparing': return <Utensils className="w-4 h-4 text-blue-600" />;
       case 'ready': return <Bell className="w-4 h-4 text-purple-600" />;
-      case 'dispatched': return <Truck className="w-4 h-4 text-indigo-600" />;
-      case 'delivered': return <CheckCircle className="w-4 h-4 text-green-700" />;
+      case 'served': return <CheckCircle className="w-4 h-4 text-green-700" />;
+      case 'completed': return <CheckCircle className="w-4 h-4 text-green-700" />;
       case 'cancelled': return <XCircle className="w-4 h-4 text-red-600" />;
       default: return <Clock className="w-4 h-4" />;
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: OnlineOrder['status']) => {
     switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'accepted': return 'bg-green-100 text-green-800';
+      case 'new': return 'bg-yellow-100 text-yellow-800';
       case 'preparing': return 'bg-blue-100 text-blue-800';
       case 'ready': return 'bg-purple-100 text-purple-800';
-      case 'dispatched': return 'bg-indigo-100 text-indigo-800';
-      case 'delivered': return 'bg-green-100 text-green-900';
+      case 'served': return 'bg-green-100 text-green-900';
+      case 'completed': return 'bg-green-100 text-green-900';
       case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const acceptOrder = (orderId: string) => {
-    updateOrderStatus(orderId, 'accepted');
+    updateOrderStatus(orderId, 'preparing');
   };
 
   const rejectOrder = (orderId: string) => {
@@ -156,9 +153,9 @@ export function OnlineOrdersManagement({ onNavigate, userRole }: OnlineOrdersPro
 
   const getFilteredOrders = () => {
     switch (activeTab) {
-      case 'pending': return onlineOrders.filter(o => o.status === 'pending');
-      case 'active': return onlineOrders.filter(o => ['accepted', 'preparing', 'ready'].includes(o.status));
-      case 'completed': return onlineOrders.filter(o => ['delivered', 'cancelled'].includes(o.status));
+      case 'pending': return onlineOrders.filter(o => o.status === 'new');
+      case 'active': return onlineOrders.filter(o => ['preparing', 'ready'].includes(o.status));
+      case 'completed': return onlineOrders.filter(o => ['served', 'completed', 'cancelled'].includes(o.status));
       default: return onlineOrders;
     }
   };
@@ -177,8 +174,31 @@ export function OnlineOrdersManagement({ onNavigate, userRole }: OnlineOrdersPro
     return diffMinutes;
   };
 
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      setNeedsScroll(el.scrollHeight > el.clientHeight + 4);
+    };
+
+    measure();
+
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => measure())
+      : null;
+
+    if (resizeObserver) resizeObserver.observe(el);
+    window.addEventListener('resize', measure);
+
+    return () => {
+      window.removeEventListener('resize', measure);
+      resizeObserver?.disconnect();
+    };
+  }, []);
+
   return (
-    <div className="flex-1 bg-background p-4 space-y-6 animate-slide-up">
+    <div ref={containerRef} className="flex-1 bg-background p-4 space-y-6 animate-slide-up">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -191,7 +211,7 @@ export function OnlineOrdersManagement({ onNavigate, userRole }: OnlineOrdersPro
             Refresh
           </Button>
           <Badge variant="secondary" className="animate-pulse">
-            {onlineOrders.filter(o => o.status === 'pending').length} New Orders
+            {onlineOrders.filter(o => o.status === 'new').length} New Orders
           </Badge>
         </div>
       </div>
@@ -207,7 +227,7 @@ export function OnlineOrdersManagement({ onNavigate, userRole }: OnlineOrdersPro
               <div>
                 <p className="text-sm text-muted-foreground">Pending</p>
                 <p className="text-xl font-bold text-primary">
-                  {onlineOrders.filter(o => o.status === 'pending').length}
+                  {onlineOrders.filter(o => o.status === 'new').length}
                 </p>
               </div>
             </div>
@@ -267,13 +287,13 @@ export function OnlineOrdersManagement({ onNavigate, userRole }: OnlineOrdersPro
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-3 bg-muted/50">
           <TabsTrigger value="pending">
-            Pending ({onlineOrders.filter(o => o.status === 'pending').length})
+            Pending ({onlineOrders.filter(o => o.status === 'new').length})
           </TabsTrigger>
           <TabsTrigger value="active">
-            Active ({onlineOrders.filter(o => ['accepted', 'preparing', 'ready'].includes(o.status)).length})
+            Active ({onlineOrders.filter(o => ['preparing', 'ready'].includes(o.status)).length})
           </TabsTrigger>
           <TabsTrigger value="completed">
-            Completed ({onlineOrders.filter(o => ['delivered', 'cancelled'].includes(o.status)).length})
+            Completed ({onlineOrders.filter(o => ['served', 'completed', 'cancelled'].includes(o.status)).length})
           </TabsTrigger>
         </TabsList>
 
@@ -289,12 +309,9 @@ export function OnlineOrdersManagement({ onNavigate, userRole }: OnlineOrdersPro
                         {getPlatformIcon(order.platform)}
                         {order.platform.charAt(0).toUpperCase() + order.platform.slice(1)}
                       </Badge>
-                      <Badge className={`${getStatusColor(order.status)} flex items-center gap-1`}>
+                        <Badge className={`${getStatusColor(order.status)} flex items-center gap-1`}>
                         {getStatusIcon(order.status)}
                         {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                      </Badge>
-                      <Badge variant={order.paymentStatus === 'paid' ? 'default' : 'destructive'}>
-                        {order.paymentStatus === 'paid' ? 'Paid' : 'Payment Pending'}
                       </Badge>
                     </div>
 
@@ -324,16 +341,13 @@ export function OnlineOrdersManagement({ onNavigate, userRole }: OnlineOrdersPro
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Truck size={14} />
-                          <span>ETA: {formatTime(order.estimatedDeliveryTime)}</span>
+                          <span>ETA: {order.estimatedDeliveryTime ? formatTime(order.estimatedDeliveryTime) : 'Not specified'}</span>
                         </div>
                       </div>
 
                       <div>
                         <div className="text-sm font-medium">
                           Total: {settings?.currencySymbol || '$'}{order.totalAmount}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Platform Fee: -{settings?.currencySymbol || '$'}{order.platformFee}
                         </div>
                         <div className="text-sm font-semibold text-green-600">
                           Net: {settings?.currencySymbol || '$'}{order.netAmount}
@@ -365,7 +379,7 @@ export function OnlineOrdersManagement({ onNavigate, userRole }: OnlineOrdersPro
 
                   {/* Action Buttons */}
                   <div className="flex flex-row lg:flex-col gap-2 lg:min-w-[120px]">
-                    {order.status === 'pending' && (
+                    {order.status === 'new' && (
                       <>
                         <Button 
                           size="sm" 
@@ -387,7 +401,7 @@ export function OnlineOrdersManagement({ onNavigate, userRole }: OnlineOrdersPro
                       </>
                     )}
 
-                    {['accepted', 'preparing'].includes(order.status) && (
+                    {['preparing'].includes(order.status) && (
                       <Button 
                         size="sm" 
                         onClick={() => markReady(order.id)}
@@ -507,10 +521,6 @@ export function OnlineOrdersManagement({ onNavigate, userRole }: OnlineOrdersPro
                     <span>Subtotal:</span>
                     <span>{settings?.currencySymbol || '$'}{selectedOrder.totalAmount}</span>
                   </div>
-                  <div className="flex justify-between text-red-600">
-                    <span>Platform Fee:</span>
-                    <span>-{settings?.currencySymbol || '$'}{selectedOrder.platformFee}</span>
-                  </div>
                   <div className="flex justify-between font-semibold text-green-600 border-t pt-2">
                     <span>Net Amount:</span>
                     <span>{settings?.currencySymbol || '$'}{selectedOrder.netAmount}</span>
@@ -521,6 +531,8 @@ export function OnlineOrdersManagement({ onNavigate, userRole }: OnlineOrdersPro
           )}
         </DialogContent>
       </Dialog>
+
+      {needsScroll && <div aria-hidden className="h-32 sm:h-40" />}
     </div>
   );
 }

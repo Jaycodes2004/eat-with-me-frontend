@@ -219,7 +219,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             <Card className="relative overflow-hidden bg-gradient-to-br from-primary to-primary/80 text-white shadow-xl border-0">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-primary-foreground/90 flex items-center gap-2">
-                  <IndianRupee className="w-4 h-4" />
+                  <div className="text-lg">{settings.currencySymbol}</div>
                   Total Sales
                 </CardTitle>
               </CardHeader>
