@@ -77,7 +77,7 @@ export function Settings() {
 	const [copiedId, setCopiedId] = useState(false); // ADD THIS
 
 	const [businessInfo, setBusinessInfo] = useState({
-		restaurantId: '', // ADD THIS
+		restaurantId: '',
 		name: '',
 		address: '',
 		phone: '',
@@ -98,45 +98,57 @@ export function Settings() {
 			localStorage.getItem('restaurantId') ||
 			'';
 
+		// Settings.tsx
+
 		const fetchTenant = async () => {
 			try {
-				const response = await apiClient.get('/tenant');
-				const tenantData = response.data;
+				const response = await apiClient.get('settings');
+				const tenantData = response.data.data;
+				const localRestaurantId =
+					sessionStorage.getItem('restaurantId') ||
+					localStorage.getItem('restaurantId');
 
 				setBusinessInfo({
 					restaurantId:
-						tenantData.restaurantId || settings.restaurantId || localRestaurantId || '',
-					name: tenantData.restaurantName || settings.restaurantName || '',
-					address: tenantData.businessAddress || settings.businessAddress || '',
-					phone: tenantData.businessPhone || settings.businessPhone || '',
-					email: tenantData.businessEmail || settings.businessEmail || '',
-					taxNumber: tenantData.taxNumber || settings.taxNumber || '',
-					fssaiNumber: tenantData.fssaiNumber || settings.fssaiNumber || '',
-				});
-
-				updateSettings({
-					restaurantId:
-						tenantData.restaurantId || settings.restaurantId || localRestaurantId || '',
-					restaurantName: tenantData.restaurantName || '',
-					businessAddress: tenantData.businessAddress || '',
-					businessPhone: tenantData.businessPhone || '',
-					businessEmail: tenantData.businessEmail || '',
-					country: tenantData.country || settings.country,
-					currency: tenantData.currency || settings.currency,
-					currencySymbol: tenantData.currencySymbol || settings.currencySymbol,
+						tenantData.restaurantId ||
+						settings.restaurantId ||
+						localRestaurantId,
+					name: tenantData.restaurantName || settings.restaurantName,
+					address: tenantData.businessAddress || settings.businessAddress,
+					phone: tenantData.businessPhone || settings.businessPhone,
+					email: tenantData.businessEmail || settings.businessEmail,
 					taxNumber: tenantData.taxNumber || settings.taxNumber,
 					fssaiNumber: tenantData.fssaiNumber || settings.fssaiNumber,
 				});
+
+				updateSettings({
+					restaurantId: tenantData.restaurantId || localRestaurantId,
+					restaurantName: tenantData.restaurantName,
+					businessAddress: tenantData.businessAddress,
+					businessPhone: tenantData.businessPhone,
+					businessEmail: tenantData.businessEmail,
+					country: tenantData.country || settings.country,
+					currency: tenantData.currency || settings.currency,
+					currencySymbol: tenantData.currencySymbol || settings.currencySymbol,
+					taxNumber: tenantData.taxNumber,
+					fssaiNumber: tenantData.fssaiNumber,
+				});
 			} catch (error) {
-				console.error('Failed to fetch tenant data:', error);
+				console.error('Failed to fetch settings:', error);
+
+				// Fallback to context/storage values
+				const localRestaurantId =
+					sessionStorage.getItem('restaurantId') ||
+					localStorage.getItem('restaurantId');
+
 				setBusinessInfo({
-					restaurantId: settings.restaurantId || localRestaurantId || '',
-					name: settings.restaurantName || '',
-					address: settings.businessAddress || '',
-					phone: settings.businessPhone || '',
-					email: settings.businessEmail || '',
-					taxNumber: settings.taxNumber || '',
-					fssaiNumber: settings.fssaiNumber || '',
+					restaurantId: settings.restaurantId || localRestaurantId,
+					name: settings.restaurantName,
+					address: settings.businessAddress,
+					phone: settings.businessPhone,
+					email: settings.businessEmail,
+					taxNumber: settings.taxNumber,
+					fssaiNumber: settings.fssaiNumber,
 				});
 			} finally {
 				setLoading(false);
@@ -320,6 +332,8 @@ export function Settings() {
 		});
 	};
 
+	// Settings.tsx
+
 	const handleSave = async () => {
 		const restaurantIdHeader =
 			sessionStorage.getItem('restaurantId') ||
@@ -333,10 +347,9 @@ export function Settings() {
 
 		setIsSaving(true);
 		try {
-			await apiClient.put(
-				'/tenant',
+			const response = await apiClient.put(
+				'settings',
 				{
-					restaurantId: restaurantIdHeader,
 					restaurantName: businessInfo.name,
 					businessAddress: businessInfo.address,
 					businessPhone: businessInfo.phone,
@@ -344,37 +357,48 @@ export function Settings() {
 					country: settings.country,
 					currency: settings.currency,
 					currencySymbol: settings.currencySymbol,
-					taxNumber: businessInfo.taxNumber,
-					fssaiNumber: businessInfo.fssaiNumber,
+					// Uncomment if implementing WhatsApp fields:
+					// whatsappApiKey: whatsappSettings.apiKey,
+					// whatsappPhoneNumber: whatsappSettings.phoneNumber,
 				},
 				{
-					headers: { 'X-Restaurant-Id': restaurantIdHeader },
+					headers: {
+						'X-Restaurant-Id': restaurantIdHeader,
+					},
 				}
 			);
 
-			// keep storage in sync so other views see the updated name immediately
+			// Sync local storage (keep this for other views to see updates)
 			sessionStorage.setItem('restaurantId', restaurantIdHeader);
 			sessionStorage.setItem('restaurantName', businessInfo.name);
 			localStorage.setItem('restaurantId', restaurantIdHeader);
 			localStorage.setItem('restaurantName', businessInfo.name);
 
+			// Update app context
 			updateSettings({
 				restaurantId: restaurantIdHeader,
 				restaurantName: businessInfo.name,
 				businessAddress: businessInfo.address,
 				businessPhone: businessInfo.phone,
 				businessEmail: businessInfo.email,
+				country: settings.country,
+				currency: settings.currency,
+				currencySymbol: settings.currencySymbol,
 				taxNumber: businessInfo.taxNumber,
 				fssaiNumber: businessInfo.fssaiNumber,
 			});
 
+			// Update local component state
 			setBusinessInfo((prev) => ({
 				...prev,
 				restaurantId: restaurantIdHeader,
 			}));
 
+			// Show success feedback
 			setSaved(true);
 			toast.success('Settings saved successfully!');
+
+			// Hide success indicator after 2 seconds
 			setTimeout(() => setSaved(false), 2000);
 		} catch (error) {
 			console.error('Failed to save settings:', error);
@@ -1625,7 +1649,10 @@ export function Settings() {
 			</Tabs>
 
 			{/* Spacer to increase scroll height*/}
-			<div aria-hidden className='h-32 sm:h-40' />
+			<div
+				aria-hidden
+				className='h-32 sm:h-40'
+			/>
 		</div>
 	);
 }
