@@ -953,7 +953,7 @@ interface AppContextType {
 }
 
 // Default tax rules for different countries
-// it can fixed 
+// it can fixed
 const getDefaultTaxRules = (country: string): TaxRule[] => {
 	switch (country) {
 		case 'India':
@@ -1028,7 +1028,7 @@ const getDefaultTaxRules = (country: string): TaxRule[] => {
 			];
 	}
 };
-// it can fixed 
+// it can fixed
 const defaultSettings: AppSettings = {
 	restaurantName: '',
 	country: '',
@@ -1080,21 +1080,21 @@ const defaultCustomers: Customer[] = [];
 
 const defaultInventoryItems: InventoryItem[] = [];
 const defaultInventoryWastageRecords: InventoryWastageRecord[] = [];
-// it can fixed 
+// it can fixed
 const defaultCategories: Category[] = [];
-// it can fixed 
+// it can fixed
 const defaultLoyaltyMembers: LoyaltyMember[] = [];
-// it can fixed 
+// it can fixed
 const defaultLoyaltyRewards: LoyaltyReward[] = [];
-// it can fixed 
+// it can fixed
 const defaultLoyaltyRules: LoyaltyRule[] = [];
-// it can fixed 
+// it can fixed
 const defaultMenuItems: MenuItem[] = [];
 
 const defaultTables: Table[] = [];
 
 // Default recipes data
-// it can fixed 
+// it can fixed
 const defaultRecipes: Recipe[] = [];
 
 // Removed first duplicate - keeping second version below
@@ -1608,32 +1608,32 @@ const defaultRecipes: Recipe[] = [];
 // 	];
 // };
 
-// it can fixed 
+// it can fixed
 const defaultOrders: Order[] = [];
-// it can fixed 
+// it can fixed
 const defaultStaff: Staff[] = [];
 
 const defaultShifts: Shift[] = [];
 const defaultSalaryPayments: SalaryPayment[] = [];
 
 // Default Extended Customers Data
-// it can fixed 
+// it can fixed
 const defaultExtendedCustomers: ExtendedCustomer[] = [];
 
 // Default Expenses Data
-// it can fixed 
+// it can fixed
 const defaultExpenses: Expense[] = [];
 
 // Default Reservations Data
-// it can fixed 
+// it can fixed
 const defaultReservations: Reservation[] = [];
 
 // Default Purchase Orders Data
-// it can fixed 
+// it can fixed
 const defaultPurchaseOrders: PurchaseOrder[] = [];
 
 // Default Budget Categories Data
-// it can fixed 
+// it can fixed
 const defaultBudgetCategories: BudgetCategory[] = [];
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -1748,8 +1748,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 		}
 		return date.toISOString();
 	};
-
-	
 
 	const getDateOnly = (value: unknown): string => {
 		const iso = parseIsoString(value);
@@ -2023,15 +2021,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 
 		return {
 			...defaultSettings,
-			restaurantName: data?.name ?? defaultSettings.restaurantName,
+			restaurantName:
+				data?.restaurantName ?? data?.name ?? defaultSettings.restaurantName,
+
 			country: data?.country ?? defaultSettings.country,
 			currency: data?.currency ?? defaultSettings.currency,
 			currencySymbol: data?.currencySymbol ?? defaultSettings.currencySymbol,
+
 			whatsappApiKey: data?.whatsappApiKey ?? '',
 			whatsappPhoneNumber: data?.whatsappPhoneNumber ?? '',
+
 			taxRules: parsedTaxRules,
 			defaultTaxCategory:
 				data?.defaultTaxCategory ?? defaultSettings.defaultTaxCategory,
+
 			theme: data?.theme?.toLowerCase?.() === 'dark' ? 'dark' : 'light',
 			language: data?.language ?? defaultSettings.language,
 			notifications:
@@ -2054,13 +2057,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 				typeof data?.loyaltyPointsPerCurrency === 'number'
 					? data.loyaltyPointsPerCurrency
 					: defaultSettings.loyaltyPointsPerCurrency,
-			businessAddress: data?.address ?? defaultSettings.businessAddress,
-			businessPhone: data?.phone ?? defaultSettings.businessPhone,
-			businessEmail: data?.email ?? defaultSettings.businessEmail,
+
+			businessAddress:
+				data?.businessAddress ??
+				data?.address ??
+				defaultSettings.businessAddress,
+			businessPhone:
+				data?.businessPhone ?? data?.phone ?? defaultSettings.businessPhone,
+			businessEmail:
+				data?.businessEmail ?? data?.email ?? defaultSettings.businessEmail,
+
 			taxNumber: data?.taxNumber ?? defaultSettings.taxNumber,
 			fssaiNumber: data?.fssaiNumber ?? defaultSettings.fssaiNumber,
 		};
-	}, []);
+	});
 
 	const mapSettingsPatchToApi = useCallback(
 		(patch: Partial<AppSettings>): Record<string, unknown> => {
@@ -2742,9 +2752,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 				setCurrentModule(availableModules[0].id);
 			}
 		}
-  }, [currentUser, currentModule, availableModules]);
-  
-	
+	}, [currentUser, currentModule, availableModules]);
+
 	const initializeAppData = useCallback(async () => {
 		const token = localStorage.getItem('accessToken');
 		const restaurantId = localStorage.getItem('restaurantId');
@@ -3311,18 +3320,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 	const deleteSupplier = async (id: string): Promise<void> => {
 		await apiClient.delete(`/supplier/${id}`);
 		setSuppliers((prev) => prev.filter((s) => s.id !== id));
-  };
-  const loadSuppliers = useCallback(async () => {
+	};
+	const loadSuppliers = useCallback(async () => {
 		try {
 			const res = await apiClient.get<Supplier[]>('/supplier');
 			setSuppliers(res.data);
 		} catch (error) {
 			console.error('[AppContext] Failed to load suppliers', error);
 		}
-  }, []);
-  
-	
-
+	}, []);
 
 	// Customer functions
 	const updateCustomers = (newCustomers: Customer[]) => {
@@ -3330,41 +3336,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 	};
 
 	const addCustomer = async (
-  payload: Omit<Customer, "id">
-): Promise<Customer> => {
-  const res = await apiClient.post("/customer", payload);
-  const created: Customer = res.data;
-  setCustomers((prev) => [...prev, created]);
-  await loadExtendedCustomers();
-  return created;
-};
+		payload: Omit<Customer, 'id'>
+	): Promise<Customer> => {
+		const res = await apiClient.post('/customer', payload);
+		const created: Customer = res.data;
+		setCustomers((prev) => [...prev, created]);
+		await loadExtendedCustomers();
+		return created;
+	};
 
-const updateCustomer = async (
-  id: string,
-  updates: Partial<Customer>
-): Promise<Customer> => {
-  const res = await apiClient.put(`/customer/${id}`, updates);
-  const updated: Customer = res.data;
-  setCustomers((prev) => prev.map((c) => (c.id === id ? updated : c)));
-  await loadExtendedCustomers();
-  return updated;
-};
+	const updateCustomer = async (
+		id: string,
+		updates: Partial<Customer>
+	): Promise<Customer> => {
+		const res = await apiClient.put(`/customer/${id}`, updates);
+		const updated: Customer = res.data;
+		setCustomers((prev) => prev.map((c) => (c.id === id ? updated : c)));
+		await loadExtendedCustomers();
+		return updated;
+	};
 
-const deleteCustomer = async (id: string): Promise<void> => {
-  await apiClient.delete(`/customer/${id}`);
-  setCustomers((prev) => prev.filter((c) => c.id !== id));
-  await loadExtendedCustomers();
-};
+	const deleteCustomer = async (id: string): Promise<void> => {
+		await apiClient.delete(`/customer/${id}`);
+		setCustomers((prev) => prev.filter((c) => c.id !== id));
+		await loadExtendedCustomers();
+	};
 
-  
-  const loadExtendedCustomers = useCallback(async () => {
-  try {
-    const res = await apiClient.get<ExtendedCustomer[]>("/customer/extended");
-    setExtendedCustomers(res.data);
-  } catch (error) {
-    console.error("[AppContext] Failed to load extended customers", error);
-  }
-}, []);
+	const loadExtendedCustomers = useCallback(async () => {
+		try {
+			const res = await apiClient.get<ExtendedCustomer[]>('/customer/extended');
+			setExtendedCustomers(res.data);
+		} catch (error) {
+			console.error('[AppContext] Failed to load extended customers', error);
+		}
+	}, []);
 
 	// Category functions
 	const getCategoriesByType = (
@@ -4363,75 +4368,74 @@ const deleteCustomer = async (id: string): Promise<void> => {
 	};
 
 	const addPurchaseOrder = async (payload: {
-  supplierId: string;
-  invoiceNumber?: string;
-  date: string;
-  totalAmount: number;
-  notes?: string;
-  items: Array<{
-    quantity: number;
-    unitPrice: number;
-    totalPrice: number;
-    inventoryItemId: string | null;
-  }>;
-}): Promise<PurchaseOrder> => {
-  const res = await apiClient.post("/supplier/purchases", payload);
-  const p = res.data;
-  const mapped: PurchaseOrder = {
-    id: p.id,
-    supplierId: p.supplierId,
-    supplierName: p.supplier?.name ?? "",
-    orderDate: p.date,
-    expectedDate: p.expectedDate ?? p.date,
-    status: (p.status as PurchaseOrder["status"]) ?? "pending",
-    totalAmount: Number(p.totalAmount ?? 0),
-    items: (p.items ?? []).map((it: any) => ({
-      itemName: it.inventoryItem?.name ?? "",
-      quantity: it.quantity,
-      unit: it.inventoryItem?.unit ?? "unit",
-      rate: it.unitPrice,
-      amount: it.totalPrice,
-    })),
-    notes: p.notes ?? "",
-    deliveredDate: p.deliveredDate ?? undefined,
-  };
-  setPurchaseOrders((prev) => [...prev, mapped]);
-  return mapped;
-};
+		supplierId: string;
+		invoiceNumber?: string;
+		date: string;
+		totalAmount: number;
+		notes?: string;
+		items: Array<{
+			quantity: number;
+			unitPrice: number;
+			totalPrice: number;
+			inventoryItemId: string | null;
+		}>;
+	}): Promise<PurchaseOrder> => {
+		const res = await apiClient.post('/supplier/purchases', payload);
+		const p = res.data;
+		const mapped: PurchaseOrder = {
+			id: p.id,
+			supplierId: p.supplierId,
+			supplierName: p.supplier?.name ?? '',
+			orderDate: p.date,
+			expectedDate: p.expectedDate ?? p.date,
+			status: (p.status as PurchaseOrder['status']) ?? 'pending',
+			totalAmount: Number(p.totalAmount ?? 0),
+			items: (p.items ?? []).map((it: any) => ({
+				itemName: it.inventoryItem?.name ?? '',
+				quantity: it.quantity,
+				unit: it.inventoryItem?.unit ?? 'unit',
+				rate: it.unitPrice,
+				amount: it.totalPrice,
+			})),
+			notes: p.notes ?? '',
+			deliveredDate: p.deliveredDate ?? undefined,
+		};
+		setPurchaseOrders((prev) => [...prev, mapped]);
+		return mapped;
+	};
 
-const updatePurchaseOrder = async (
-  id: string,
-  updates: Partial<PurchaseOrder>
-): Promise<PurchaseOrder> => {
-  const res = await apiClient.put(`/supplier/purchases/${id}`, updates);
-  const p = res.data;
-  const mapped: PurchaseOrder = {
-    id: p.id,
-    supplierId: p.supplierId,
-    supplierName: p.supplier?.name ?? "",
-    orderDate: p.date,
-    expectedDate: p.expectedDate ?? p.date,
-    status: (p.status as PurchaseOrder["status"]) ?? "pending",
-    totalAmount: Number(p.totalAmount ?? 0),
-    items: (p.items ?? []).map((it: any) => ({
-      itemName: it.inventoryItem?.name ?? "",
-      quantity: it.quantity,
-      unit: it.inventoryItem?.unit ?? "unit",
-      rate: it.unitPrice,
-      amount: it.totalPrice,
-    })),
-    notes: p.notes ?? "",
-    deliveredDate: p.deliveredDate ?? undefined,
-  };
-  setPurchaseOrders((prev) => prev.map((o) => (o.id === id ? mapped : o)));
-  return mapped;
-};
+	const updatePurchaseOrder = async (
+		id: string,
+		updates: Partial<PurchaseOrder>
+	): Promise<PurchaseOrder> => {
+		const res = await apiClient.put(`/supplier/purchases/${id}`, updates);
+		const p = res.data;
+		const mapped: PurchaseOrder = {
+			id: p.id,
+			supplierId: p.supplierId,
+			supplierName: p.supplier?.name ?? '',
+			orderDate: p.date,
+			expectedDate: p.expectedDate ?? p.date,
+			status: (p.status as PurchaseOrder['status']) ?? 'pending',
+			totalAmount: Number(p.totalAmount ?? 0),
+			items: (p.items ?? []).map((it: any) => ({
+				itemName: it.inventoryItem?.name ?? '',
+				quantity: it.quantity,
+				unit: it.inventoryItem?.unit ?? 'unit',
+				rate: it.unitPrice,
+				amount: it.totalPrice,
+			})),
+			notes: p.notes ?? '',
+			deliveredDate: p.deliveredDate ?? undefined,
+		};
+		setPurchaseOrders((prev) => prev.map((o) => (o.id === id ? mapped : o)));
+		return mapped;
+	};
 
-const deletePurchaseOrder = async (id: string): Promise<void> => {
-  await apiClient.delete(`/supplier/purchases/${id}`);
-  setPurchaseOrders((prev) => prev.filter((o) => o.id !== id));
-};
-
+	const deletePurchaseOrder = async (id: string): Promise<void> => {
+		await apiClient.delete(`/supplier/purchases/${id}`);
+		setPurchaseOrders((prev) => prev.filter((o) => o.id !== id));
+	};
 
 	const getPurchaseOrdersBySupplier = (supplierId: string): PurchaseOrder[] => {
 		return purchaseOrders.filter((order) => order.supplierId === supplierId);
@@ -4441,9 +4445,9 @@ const deletePurchaseOrder = async (id: string): Promise<void> => {
 		status: PurchaseOrder['status']
 	): PurchaseOrder[] => {
 		return purchaseOrders.filter((order) => order.status === status);
-  };
-  
-  const loadPurchaseOrders = useCallback(async () => {
+	};
+
+	const loadPurchaseOrders = useCallback(async () => {
 		try {
 			const res = await apiClient.get('/supplier/purchases/all');
 			const mapped: PurchaseOrder[] = res.data.map((p: any) => ({
@@ -5073,7 +5077,7 @@ const deletePurchaseOrder = async (id: string): Promise<void> => {
 				updateCustomers,
 				addCustomer,
 				updateCustomer,
-        deleteCustomer,
+				deleteCustomer,
 
 				inventoryItems,
 				updateInventoryItems,
@@ -5170,8 +5174,8 @@ const deletePurchaseOrder = async (id: string): Promise<void> => {
 				updateExtendedCustomer,
 				deleteExtendedCustomer,
 				getCustomerOrderHistory,
-        updateCustomerStats,
-        loadExtendedCustomers,
+				updateCustomerStats,
+				loadExtendedCustomers,
 
 				// Expenses Management
 				expenses,
@@ -5191,8 +5195,8 @@ const deletePurchaseOrder = async (id: string): Promise<void> => {
 				updatePurchaseOrder,
 				deletePurchaseOrder,
 				getPurchaseOrdersBySupplier,
-        getPurchaseOrdersByStatus,
-        loadPurchaseOrders,
+				getPurchaseOrdersByStatus,
+				loadPurchaseOrders,
 
 				// Budget Categories Management
 				budgetCategories,
