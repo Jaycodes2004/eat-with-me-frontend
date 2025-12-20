@@ -104,51 +104,56 @@ export function Settings() {
 			try {
 				const response = await apiClient.get('settings');
 				const tenantData = response.data.data;
+
 				const localRestaurantId =
 					sessionStorage.getItem('restaurantId') ||
-					localStorage.getItem('restaurantId');
+					localStorage.getItem('restaurantId') ||
+					'';
 
+				// Fill local state from backend, falling back to context
 				setBusinessInfo({
 					restaurantId:
-						tenantData.restaurantId ||
-						settings.restaurantId ||
+						tenantData.restaurantId ??
+						settings.restaurantId ??
 						localRestaurantId,
-					name: tenantData.restaurantName || settings.restaurantName,
-					address: tenantData.businessAddress || settings.businessAddress,
-					phone: tenantData.businessPhone || settings.businessPhone,
-					email: tenantData.businessEmail || settings.businessEmail,
-					taxNumber: tenantData.taxNumber || settings.taxNumber,
-					fssaiNumber: tenantData.fssaiNumber || settings.fssaiNumber,
+					name: tenantData.restaurantName ?? settings.restaurantName ?? '',
+					address: tenantData.businessAddress ?? settings.businessAddress ?? '',
+					phone: tenantData.businessPhone ?? settings.businessPhone ?? '',
+					email: tenantData.businessEmail ?? settings.businessEmail ?? '',
+					taxNumber: tenantData.taxNumber ?? settings.taxNumber ?? '',
+					fssaiNumber: tenantData.fssaiNumber ?? settings.fssaiNumber ?? '',
 				});
 
-				updateSettings({
-					restaurantId: tenantData.restaurantId || localRestaurantId,
+				// Also sync app context settings from backend
+				await updateSettings({
+					restaurantId: tenantData.restaurantId ?? localRestaurantId,
 					restaurantName: tenantData.restaurantName,
 					businessAddress: tenantData.businessAddress,
 					businessPhone: tenantData.businessPhone,
 					businessEmail: tenantData.businessEmail,
-					country: tenantData.country || settings.country,
-					currency: tenantData.currency || settings.currency,
-					currencySymbol: tenantData.currencySymbol || settings.currencySymbol,
+					country: tenantData.country,
+					currency: tenantData.currency,
+					currencySymbol: tenantData.currencySymbol,
 					taxNumber: tenantData.taxNumber,
 					fssaiNumber: tenantData.fssaiNumber,
 				});
 			} catch (error) {
-				console.error('Failed to fetch settings:', error);
+				console.error('Failed to fetch settings', error);
 
-				// Fallback to context/storage values
 				const localRestaurantId =
 					sessionStorage.getItem('restaurantId') ||
-					localStorage.getItem('restaurantId');
+					localStorage.getItem('restaurantId') ||
+					'';
 
+				// fallback to whatever is already in context/local storage
 				setBusinessInfo({
-					restaurantId: settings.restaurantId || localRestaurantId,
-					name: settings.restaurantName,
-					address: settings.businessAddress,
-					phone: settings.businessPhone,
-					email: settings.businessEmail,
-					taxNumber: settings.taxNumber,
-					fssaiNumber: settings.fssaiNumber,
+					restaurantId: settings.restaurantId ?? localRestaurantId,
+					name: settings.restaurantName ?? '',
+					address: settings.businessAddress ?? '',
+					phone: settings.businessPhone ?? '',
+					email: settings.businessEmail ?? '',
+					taxNumber: settings.taxNumber ?? '',
+					fssaiNumber: settings.fssaiNumber ?? '',
 				});
 			} finally {
 				setLoading(false);

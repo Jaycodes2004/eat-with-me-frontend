@@ -2021,6 +2021,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 
 		return {
 			...defaultSettings,
+
+			// prefer restaurantName, fall back to name
 			restaurantName:
 				data?.restaurantName ?? data?.name ?? defaultSettings.restaurantName,
 
@@ -2058,6 +2060,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 					? data.loyaltyPointsPerCurrency
 					: defaultSettings.loyaltyPointsPerCurrency,
 
+			// prefer business* fields, fall back to generic address/phone/email
 			businessAddress:
 				data?.businessAddress ??
 				data?.address ??
