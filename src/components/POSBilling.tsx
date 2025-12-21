@@ -9,7 +9,6 @@ import {
 	updateCustomer,
 } from '../api/customers';
 import { fetchTables, updateTable as updateTableAPI } from '../api/tables';
-import { fetchTables, updateTable as updateTableAPI } from '../api/tables';
 
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -424,134 +423,129 @@ export function POSBilling() {
 
 	// Load pending orders for a table when clicked for final billing
 	const loadTableForBilling = async (tableNumber: number) => {
-  try {
-    // Find the table
-    const table = tables.find((t) => t.number === tableNumber);
-    if (!table) {
-      addNotification({
-        title: 'Error',
-        message: `Table ${tableNumber} not found`,
-        type: 'error',
-      });
-      return;
-    }
+		try {
+			// Find the table
+			const table = tables.find((t) => t.number === tableNumber);
+			if (!table) {
+				addNotification({
+					title: 'Error',
+					message: `Table ${tableNumber} not found`,
+					type: 'error',
+				});
+				return;
+			}
 
-    // Get pending orders for this table
-    const tablePendingOrders = orders.filter(
-      (order) =>
-        order.tableNumber === tableNumber && order.status === pendingStatus
-    );
+			// Get pending orders for this table
+			const tablePendingOrders = orders.filter(
+				(order) =>
+					order.tableNumber === tableNumber && order.status === pendingStatus
+			);
 
-    // Allow loading the table even if no pending orders - for adding items to the table
-    if (tablePendingOrders.length === 0) {
-      // Fetch fresh customer data from API
-      const latestCustomers = await fetchCustomers();
-      setCustomers(latestCustomers || []);
+			// Allow loading the table even if no pending orders - for adding items to the table
+			if (tablePendingOrders.length === 0) {
+				// Fetch fresh customer data from API
+				const latestCustomers = await fetchCustomers();
+				setCustomers(latestCustomers || []);
 
-      // Set up the table for new items
-      const customer = latestCustomers?.find(
-        (c) => c.phone === table.customer
-      );
+				// Set up the table for new items
+				const customer = latestCustomers?.find(
+					(c) => c.phone === table.customer
+				);
 
-      setOrderDetails({
-        type: 'dine-in',
-        tableNumber: `Table ${tableNumber}`,
-        customerName: customer?.name || table.customer || '',
-        customerPhone: customer?.phone || '',
-        paymentMethod: null,
-        referralCode: '',
-        specialInstructions: '',
-      });
-      setCart([]);
-      setBillingMode(false); // Allow adding new items
+				setOrderDetails({
+					type: 'dine-in',
+					tableNumber: `Table ${tableNumber}`,
+					customerName: customer?.name || table.customer || '',
+					customerPhone: customer?.phone || '',
+					paymentMethod: null,
+					referralCode: '',
+					specialInstructions: '',
+				});
+				setCart([]);
+				setBillingMode(false); // Allow adding new items
 
-      addNotification({
-        title: 'Table Selected',
-        message: `Table ${tableNumber} selected. You can now add items to this order.`,
-        type: 'info',
-      });
-      return;
-    }
+				addNotification({
+					title: 'Table Selected',
+					message: `Table ${tableNumber} selected. You can now add items to this order.`,
+					type: 'info',
+				});
+				return;
+			}
 
-    // Load all items from all pending orders into cart
-    const allItems: CartItem[] = [];
-    let specialInstructionsArray: string[] = [];
+			// Load all items from all pending orders into cart
+			const allItems: CartItem[] = [];
+			let specialInstructionsArray: string[] = [];
 
-    tablePendingOrders.forEach((order) => {
-      // Collect special instructions
-      if (order.specialInstructions) {
-        specialInstructionsArray.push(order.specialInstructions);
-      }
+			tablePendingOrders.forEach((order) => {
+				// Collect special instructions
+				if (order.specialInstructions) {
+					specialInstructionsArray.push(order.specialInstructions);
+				}
 
-      // Validate items exist
-      if (order.items && Array.isArray(order.items)) {
-        order.items.forEach((item) => {
-          if (!item.id || !item.name) {
-            console.warn('Invalid item structure:', item);
-            return;
-          }
+				// Validate items exist
+				if (order.items && Array.isArray(order.items)) {
+					order.items.forEach((item) => {
+						if (!item.id || !item.name) {
+							console.warn('Invalid item structure:', item);
+							return;
+						}
 
-          const existingItem = allItems.find((i) => i.id === item.id);
-          if (existingItem) {
-            existingItem.quantity += item.quantity;
-          } else {
-            allItems.push({
-              id: item.id,
-              name: item.name,
-              price: item.price || 0,
-              quantity: item.quantity || 1,
-              category: item.category || 'Uncategorized',
-            });
-          }
-        });
-      }
-    });
+						const existingItem = allItems.find((i) => i.id === item.id);
+						if (existingItem) {
+							existingItem.quantity += item.quantity;
+						} else {
+							allItems.push({
+								id: item.id,
+								name: item.name,
+								price: item.price || 0,
+								quantity: item.quantity || 1,
+								category: item.category || 'Uncategorized',
+							});
+						}
+					});
+				}
+			});
 
-    // Fetch fresh customer data
-    const latestCustomers = await fetchCustomers();
-    setCustomers(latestCustomers || []);
+			// Fetch fresh customer data
+			const latestCustomers = await fetchCustomers();
+			setCustomers(latestCustomers || []);
 
-    // Get customer details from latest data
-    const firstOrderCustomerPhone = tablePendingOrders[0]?.customerPhone;
-    const customerData = latestCustomers?.find(
-      (c) => c.phone === firstOrderCustomerPhone
-    );
+			// Get customer details from latest data
+			const firstOrderCustomerPhone = tablePendingOrders[0]?.customerPhone;
+			const customerData = latestCustomers?.find(
+				(c) => c.phone === firstOrderCustomerPhone
+			);
 
-    setCart(allItems);
-    setBillingMode(true);
+			setCart(allItems);
+			setBillingMode(true);
 
-    // Set order details from the first order with fresh customer data
-    setOrderDetails({
-      type: 'dine-in',
-      tableNumber: `Table ${tableNumber}`,
-      customerName:
-        customerData?.name ||
-        tablePendingOrders[0]?.customerName ||
-        '',
-      customerPhone:
-        customerData?.phone ||
-        tablePendingOrders[0]?.customerPhone ||
-        '',
-      paymentMethod: null,
-      referralCode: '',
-      specialInstructions: specialInstructionsArray.join(' | ') || '', // Combine all instructions
-    });
+			// Set order details from the first order with fresh customer data
+			setOrderDetails({
+				type: 'dine-in',
+				tableNumber: `Table ${tableNumber}`,
+				customerName:
+					customerData?.name || tablePendingOrders[0]?.customerName || '',
+				customerPhone:
+					customerData?.phone || tablePendingOrders[0]?.customerPhone || '',
+				paymentMethod: null,
+				referralCode: '',
+				specialInstructions: specialInstructionsArray.join(' | ') || '', // Combine all instructions
+			});
 
-    addNotification({
-      title: 'Table Loaded for Billing',
-      message: `Loaded ${tablePendingOrders.length} pending order(s) from Table ${tableNumber}. Total items: ${allItems.length}`,
-      type: 'info',
-    });
-  } catch (error) {
-    console.error('Error loading table for billing:', error);
-    addNotification({
-      title: 'Error',
-      message: 'Failed to load table for billing',
-      type: 'error',
-    });
-  }
-};
-
+			addNotification({
+				title: 'Table Loaded for Billing',
+				message: `Loaded ${tablePendingOrders.length} pending order(s) from Table ${tableNumber}. Total items: ${allItems.length}`,
+				type: 'info',
+			});
+		} catch (error) {
+			console.error('Error loading table for billing:', error);
+			addNotification({
+				title: 'Error',
+				message: 'Failed to load table for billing',
+				type: 'error',
+			});
+		}
+	};
 
 	const completeFinalBilling = () => {
 		if (!orderDetails.paymentMethod) {
