@@ -266,6 +266,10 @@ export interface UpdateTablePayload {
 	currentOrderId?: string | null;
 	currentBillId?: string | null;
 	lastOrderAt?: string | null;
+	customer?: string | null;
+	reservationName?: string | null;
+	reservationPhone?: string | null;
+	reservationTime?: string | null;
 }
 
 export interface LoyaltyMember {
@@ -1807,6 +1811,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 		];
 		if (typeof value === 'string') {
 			const normalized = value.toLowerCase();
+			if (normalized === 'available') {
+				return 'free';
+			}
 			if (allowed.includes(normalized as TableStatus)) {
 				return normalized as TableStatus;
 			}
@@ -3917,8 +3924,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 					lastOrderAt: updates.lastOrderAt ?? undefined,
 				};
 
+				if (Object.prototype.hasOwnProperty.call(updates, 'customer')) {
+					body.customer = updates.customer ?? null;
+				}
+				if (
+					Object.prototype.hasOwnProperty.call(updates, 'reservationName')
+				) {
+					body.reservationName = updates.reservationName ?? null;
+				}
+				if (
+					Object.prototype.hasOwnProperty.call(updates, 'reservationPhone')
+				) {
+					body.reservationPhone = updates.reservationPhone ?? null;
+				}
+				if (
+					Object.prototype.hasOwnProperty.call(updates, 'reservationTime')
+				) {
+					body.reservationTime = updates.reservationTime ?? null;
+				}
+
 				if (updates.status) {
-					body.status = updates.status.toUpperCase();
+					const normalizedStatus = updates.status === 'free' ? 'available' : updates.status;
+					body.status = normalizedStatus.toUpperCase();
 				}
 
 				Object.keys(body).forEach((key) => {

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -59,8 +59,6 @@ export function QROrdering() {
   const { settings, tables, orders, addOrder, updateOrder, addTable, deleteTable, currentUser } = useAppContext();
   const [activeTab, setActiveTab] = useState<'orders' | 'tables'>('orders');
   const [showQRGenerator, setShowQRGenerator] = useState(false);
-  const [needsScroll, setNeedsScroll] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
   
   // Use tables from AppContext and add QR-specific properties
   const qrTables = tables.map(table => ({
@@ -107,29 +105,6 @@ export function QROrdering() {
   const [customerName, setCustomerName] = useState('');
   const [otp, setOtp] = useState('');
   const [selectedTable, setSelectedTable] = useState('T01');
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const measure = () => {
-      setNeedsScroll(el.scrollHeight > el.clientHeight + 4);
-    };
-
-    measure();
-
-    const resizeObserver = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(() => measure())
-      : null;
-
-    if (resizeObserver) resizeObserver.observe(el);
-    window.addEventListener('resize', measure);
-
-    return () => {
-      window.removeEventListener('resize', measure);
-      resizeObserver?.disconnect();
-    };
-  }, []);
 
 
   const updateOrderStatus = (orderId: string, newStatus: QROrder['status']) => {
@@ -414,7 +389,7 @@ export function QROrdering() {
   }
 
   return (
-    <div ref={containerRef} className="p-4 space-y-6">
+    <div className="p-4 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
@@ -778,7 +753,6 @@ export function QROrdering() {
           </Card>
         </div>
       )}
-      {needsScroll && <div aria-hidden className="h-32 sm:h-40" />}
     </div>
   );
 }

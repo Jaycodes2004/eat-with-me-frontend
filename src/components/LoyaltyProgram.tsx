@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useAppContext, type LoyaltyReward, type LoyaltyRule } from '../contexts/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -90,32 +90,6 @@ export function LoyaltyProgram() {
 
   const currencySymbol = settings?.currencySymbol ?? '₹';
 
-  const [needsScroll, setNeedsScroll] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const measure = () => {
-      setNeedsScroll(el.scrollHeight > el.clientHeight + 4);
-    };
-
-    measure();
-
-    const resizeObserver = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(() => measure())
-      : null;
-
-    if (resizeObserver) resizeObserver.observe(el);
-    window.addEventListener('resize', measure);
-
-    return () => {
-      window.removeEventListener('resize', measure);
-      resizeObserver?.disconnect();
-    };
-  }, []);
-
   // Use customers as loyalty members (unified system)
   const members = customers;
 
@@ -201,7 +175,7 @@ export function LoyaltyProgram() {
   const averagePointsPerMember = totalMembers > 0 ? Math.round(totalPointsIssued / totalMembers) : 0;
 
   return (
-    <div ref={containerRef} className="p-4 max-w-7xl mx-auto space-y-6 h-full overflow-auto">
+    <div className="p-4 max-w-7xl mx-auto space-y-6 h-full overflow-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="flex items-center gap-2">
@@ -759,8 +733,6 @@ export function LoyaltyProgram() {
           </div>
         </TabsContent>
       </Tabs>
-
-      <div aria-hidden className='h-32 sm:h-40' />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useAppContext, Supplier, PurchaseOrder } from "../contexts/AppContext";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
@@ -138,32 +138,6 @@ export function SupplierManagement() {
   );
   const [currentOrderItem, setCurrentOrderItem] =
     useState<PurchaseOrderItemDraft>(createEmptyPurchaseOrderItem());
-
-  const [needsScroll, setNeedsScroll] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const measure = () => {
-      setNeedsScroll(el.scrollHeight > el.clientHeight + 4);
-    };
-
-    measure();
-
-    const resizeObserver = typeof ResizeObserver !== "undefined"
-      ? new ResizeObserver(() => measure())
-      : null;
-
-    if (resizeObserver) resizeObserver.observe(el);
-    window.addEventListener("resize", measure);
-
-    return () => {
-      window.removeEventListener("resize", measure);
-      resizeObserver?.disconnect();
-    };
-  }, []);
 
   const supplierCategories = getCategoriesByType("supplier");
 

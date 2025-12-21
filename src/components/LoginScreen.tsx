@@ -15,6 +15,7 @@ import { Separator } from './ui/separator';
 
 import { SignupScreen, type SignupSuccessPayload } from './SignupScreen';
 import { motion, AnimatePresence } from 'motion/react';
+import { ForgotPassword } from './ForgotPassword';
 import {
 	Eye,
 	EyeOff,
@@ -452,11 +453,10 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
 									/>
 									Remember me
 								</label>
-								<Button
-									variant='link'
-									className='text-sm px-0 text-primary'>
-									Forgot password?
-								</Button>
+								<ForgotPassword
+									triggerClassName='text-sm px-0 text-primary'
+									onSent={(sentEmail) => setEmail(sentEmail)}
+								/>
 							</motion.div>
 
 							<motion.div

@@ -12,6 +12,7 @@ import {
 	CardTitle,
 } from './ui/card';
 import { Badge } from './ui/badge';
+import { ForgotPassword } from './ForgotPassword';
 import {
 	Select,
 	SelectContent,
@@ -814,13 +815,16 @@ export function SignupScreen({ onSignup, onBackToLogin }: SignupScreenProps) {
 
 								{/* Navigation Buttons */}
 								<div className='flex justify-between pt-6 border-t'>
-									<Button
-										variant='ghost'
-										onClick={step === 1 ? onBackToLogin : handleBack}
-										className='flex items-center gap-2'>
-										<ArrowLeft className='w-4 h-4' />
-										{step === 1 ? 'Back to Login' : 'Previous'}
-									</Button>
+									<div className='flex items-center gap-3'>
+										<Button
+											variant='ghost'
+											onClick={step === 1 ? onBackToLogin : handleBack}
+											className='flex items-center gap-2'>
+											<ArrowLeft className='w-4 h-4' />
+											{step === 1 ? 'Back to Login' : 'Previous'}
+										</Button>
+										<ForgotPassword triggerClassName='text-sm px-0 text-primary' />
+									</div>
 
 									{step < 3 ? (
 										<Button

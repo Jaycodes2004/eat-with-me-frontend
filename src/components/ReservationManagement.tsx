@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppContext, Reservation, CreateReservationPayload } from '../contexts/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -55,6 +55,7 @@ export function ReservationManagement({ onNavigate, userRole }: ReservationManag
     tables, 
     getAvailableTables, 
     updateTable,
+    getTableById,
     settings,
     reservations,
     addReservation,
@@ -73,12 +74,11 @@ export function ReservationManagement({ onNavigate, userRole }: ReservationManag
   const [availableTables, setAvailableTables] = useState(getAvailableTables());
   const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
+  const [selectedTableId, setSelectedTableId] = useState<string>('');
   const [showTableSuggestions, setShowTableSuggestions] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isCreatingReservation, setIsCreatingReservation] = useState(false);
   const [activeReservationActionId, setActiveReservationActionId] = useState<string | null>(null);
-  const [needsScroll, setNeedsScroll] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
   
   const [newReservation, setNewReservation] = useState<{
     customerName: string;
@@ -112,28 +112,25 @@ export function ReservationManagement({ onNavigate, userRole }: ReservationManag
     return () => clearInterval(timer);
   }, []);
 
+  // Refresh available tables when party size or table data changes
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+    const isAvailable = (status: string) => ['free', 'available'].includes(status);
+    const filtered = tables.filter(
+      (table) => isAvailable(table.status) && table.capacity >= newReservation.partySize
+    );
+    setAvailableTables(filtered);
 
-    const measure = () => {
-      setNeedsScroll(el.scrollHeight > el.clientHeight + 4);
-    };
+    if (filtered.length === 0) {
+      setSelectedTableId('');
+      return;
+    }
 
-    measure();
-
-    const resizeObserver = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(() => measure())
-      : null;
-
-    if (resizeObserver) resizeObserver.observe(el);
-    window.addEventListener('resize', measure);
-
-    return () => {
-      window.removeEventListener('resize', measure);
-      resizeObserver?.disconnect();
-    };
-  }, []);
+    // Auto-select the first available table if current selection is no longer valid
+    const stillValid = selectedTableId && filtered.some((t) => t.id === selectedTableId);
+    if (!stillValid) {
+      setSelectedTableId(filtered[0].id);
+    }
+  }, [tables, newReservation.partySize, selectedTableId]);
 
   // Using reservations from context - no local state needed
 
@@ -225,16 +222,21 @@ export function ReservationManagement({ onNavigate, userRole }: ReservationManag
     if (!selectedTimeSlot || !newReservation.date) return;
 
     setIsCheckingAvailability(true);
-    
-    // Simulate availability check
-    setTimeout(() => {
-      const available = getAvailableTables().filter(table => 
-        table.capacity >= newReservation.partySize
+
+    const isAvailable = (status: string) => ['free', 'available'].includes(status);
+    const available = getAvailableTables()
+      .concat(tables.filter((t) => isAvailable(t.status)))
+      .filter(
+        (table, index, self) =>
+          table.capacity >= newReservation.partySize &&
+          self.findIndex((t) => t.id === table.id) === index
       );
-      setAvailableTables(available);
-      setShowTableSuggestions(true);
-      setIsCheckingAvailability(false);
-    }, 1000);
+    setAvailableTables(available);
+    if (!selectedTableId && available.length > 0) {
+      setSelectedTableId(available[0].id);
+    }
+    setShowTableSuggestions(true);
+    setIsCheckingAvailability(false);
   };
 
   // Handle reservation creation
@@ -243,6 +245,18 @@ export function ReservationManagement({ onNavigate, userRole }: ReservationManag
 
     if (!newReservation.customerName.trim() || !newReservation.customerPhone.trim() || !timeSlot) {
       toast.error('Please fill in the guest name, phone number, and time slot.');
+      return;
+    }
+
+    const fallbackTableId = selectedTableId || availableTables[0]?.id;
+    if (!fallbackTableId) {
+      toast.error('Please select an available table to reserve.');
+      return;
+    }
+
+    const selectedTable = getTableById(fallbackTableId);
+    if (!selectedTable) {
+      toast.error('Selected table is no longer available. Please refresh.');
       return;
     }
 
@@ -257,13 +271,35 @@ export function ReservationManagement({ onNavigate, userRole }: ReservationManag
       occasion: newReservation.occasion || undefined,
       source: newReservation.source,
       priority: newReservation.priority,
-      status: 'pending'
+      status: 'pending',
+      tableId: selectedTable.id,
+      tableNumber: selectedTable.number
     };
 
     setIsCreatingReservation(true);
 
     try {
       await addReservation(payload);
+
+      // Close dialog immediately on success
+      setIsAddDialogOpen(false);
+
+      // Mark table as reserved immediately (Option A)
+      const reservationDateTime = `${payload.date}T${timeSlot}`;
+      try {
+        await updateTable(selectedTable.id, {
+          status: 'reserved',
+          guests: payload.partySize,
+          customer: payload.customerName,
+          reservationName: payload.customerName,
+          reservationPhone: payload.customerPhone,
+          reservationTime: reservationDateTime,
+        });
+      } catch (tableError) {
+        console.error('Reservation saved but failed to mark table reserved', tableError);
+        toast.error('Reservation saved, but table status did not update. Please refresh.');
+      }
+
       toast.success('Reservation created successfully.');
 
       setNewReservation({
@@ -279,8 +315,8 @@ export function ReservationManagement({ onNavigate, userRole }: ReservationManag
         priority: 'normal'
       });
       setSelectedTimeSlot('');
+      setSelectedTableId('');
       setShowTableSuggestions(false);
-      setIsAddDialogOpen(false);
     } catch (error) {
       console.error('Failed to create reservation', error);
       toast.error('Failed to create reservation. Please try again.');
@@ -291,9 +327,44 @@ export function ReservationManagement({ onNavigate, userRole }: ReservationManag
 
   const updateReservationStatus = async (id: string, status: Reservation['status']) => {
     setActiveReservationActionId(id);
+    const reservation = reservations.find((res) => res.id === id);
     try {
       await updateReservation(id, { status });
       toast.success(`Reservation marked as ${status}.`);
+
+      if (reservation?.tableId) {
+        const shouldFree = ['cancelled', 'completed', 'no-show'].includes(status);
+        const reservationDateTime = `${reservation.date}T${reservation.time}`;
+
+        if (status === 'seated') {
+          await updateTable(reservation.tableId, {
+            status: 'occupied',
+            guests: reservation.partySize,
+            customer: reservation.customerName,
+            reservationName: reservation.customerName,
+            reservationPhone: reservation.customerPhone,
+            reservationTime: reservationDateTime,
+          });
+        } else if (shouldFree) {
+          await updateTable(reservation.tableId, {
+            status: 'free',
+            guests: 0,
+            customer: null,
+            reservationName: null,
+            reservationPhone: null,
+            reservationTime: null,
+          });
+        } else if (status === 'confirmed') {
+          await updateTable(reservation.tableId, {
+            status: 'reserved',
+            guests: reservation.partySize,
+            customer: reservation.customerName,
+            reservationName: reservation.customerName,
+            reservationPhone: reservation.customerPhone,
+            reservationTime: reservationDateTime,
+          });
+        }
+      }
     } catch (error) {
       console.error('Failed to update reservation status', error);
       toast.error('Unable to update reservation status.');
@@ -320,7 +391,7 @@ export function ReservationManagement({ onNavigate, userRole }: ReservationManag
   const filteredReservations = getFilteredReservations();
 
   return (
-    <div ref={containerRef} className="space-y-6 p-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -408,6 +479,7 @@ export function ReservationManagement({ onNavigate, userRole }: ReservationManag
                   onValueChange={(value: string) => {
                     setSelectedTimeSlot(value);
                     setNewReservation(prev => ({ ...prev, time: value }));
+                    setShowTableSuggestions(false);
                   }}
                 >
                   <SelectTrigger>
@@ -507,6 +579,43 @@ export function ReservationManagement({ onNavigate, userRole }: ReservationManag
                     <CheckCircle className="h-4 w-4" />
                     <AlertDescription>
                       Found {availableTables.length} available tables for {newReservation.partySize} people at {selectedTimeSlot}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {showTableSuggestions && availableTables.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {availableTables.map((table) => {
+                      const isSelected = selectedTableId === table.id;
+                      return (
+                        <button
+                          type="button"
+                          key={table.id}
+                          onClick={() => setSelectedTableId(table.id)}
+                          className={`flex w-full items-center justify-between rounded-lg border p-3 text-left transition ${
+                            isSelected
+                              ? 'border-primary bg-primary/5'
+                              : 'border-border hover:border-primary/60'
+                          }`}
+                        >
+                          <div className="space-y-1">
+                            <div className="font-medium">Table {table.number}</div>
+                            <div className="text-sm text-muted-foreground">
+                              Seats {table.capacity}
+                            </div>
+                          </div>
+                          {isSelected && <CheckCircle className="h-4 w-4 text-primary" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {showTableSuggestions && availableTables.length === 0 && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      No free tables match this party size right now.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -778,7 +887,6 @@ export function ReservationManagement({ onNavigate, userRole }: ReservationManag
           </Tabs>
         </CardContent>
       </Card>
-      {needsScroll && <div aria-hidden className="h-32 sm:h-40" />}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppContext, InventoryItem, InventoryWastageReason } from '../contexts/AppContext';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -104,31 +104,6 @@ export function InventoryManagement() {
 
   const [wastageForm, setWastageForm] = useState<WastageFormState>(initialWastageForm);
   const [wastageFormErrors, setWastageFormErrors] = useState<WastageFormErrors>({});
-  const [needsScroll, setNeedsScroll] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const measure = () => {
-      setNeedsScroll(el.scrollHeight > el.clientHeight + 4);
-    };
-
-    measure();
-
-    const resizeObserver = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(() => measure())
-      : null;
-
-    if (resizeObserver) resizeObserver.observe(el);
-    window.addEventListener('resize', measure);
-
-    return () => {
-      window.removeEventListener('resize', measure);
-      resizeObserver?.disconnect();
-    };
-  }, []);
 
   const getStockStatus = (item: InventoryItem) => {
     const percentage = (item.currentStock / item.maxStock) * 100;
@@ -313,7 +288,7 @@ export function InventoryManagement() {
   };
 
   return (
-    <div ref={containerRef} className="p-4 space-y-6">
+    <div className="p-4 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
@@ -886,7 +861,6 @@ export function InventoryManagement() {
           </Card>
         </TabsContent>
       </Tabs>
-      {needsScroll && <div aria-hidden className="h-32 sm:h-40" />}
     </div>
   );
 }

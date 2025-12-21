@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import type { MouseEvent } from 'react';
 import { useAppContext } from '../contexts/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -91,8 +91,6 @@ export function POSBilling() {
   });
 
   const pendingStatus = 'pending' as any;
-  const [needsScroll, setNeedsScroll] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Get unique categories from menu items
   const categories = [...new Set(contextMenuItems.map(item => item.category))];
@@ -130,29 +128,6 @@ export function POSBilling() {
       isOccupied: t.status !== 'free'
     })));
   }, [tables]);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const measure = () => {
-      setNeedsScroll(el.scrollHeight > el.clientHeight + 4);
-    };
-
-    measure();
-
-    const resizeObserver = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(() => measure())
-      : null;
-
-    if (resizeObserver) resizeObserver.observe(el);
-    window.addEventListener('resize', measure);
-
-    return () => {
-      window.removeEventListener('resize', measure);
-      resizeObserver?.disconnect();
-    };
-  }, []);
 
   // Set default category to first available category
   useEffect(() => {
@@ -679,7 +654,7 @@ export function POSBilling() {
   };
 
   return (
-    <div ref={containerRef} className="flex flex-col lg:flex-row h-full bg-background">
+    <div className="flex flex-col lg:flex-row h-full bg-background">
       {/* Menu Section */}
       <div className="flex-1 p-4 space-y-4">
         {/* Header with order status */}
@@ -1231,7 +1206,6 @@ export function POSBilling() {
           </div>
         </DialogContent>
       </Dialog>
-      {needsScroll && <div aria-hidden className="h-32 sm:h-40" />}
     </div>
   );
 }
