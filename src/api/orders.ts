@@ -3,7 +3,7 @@ import apiClient from '../lib/api';
 /**
  * Order API Service
  * Handles all order-related API calls to the backend
- * 
+ *
  * API Base: http://localhost:5000/api/orders
  * Production: https://backend-url/api/orders
  */
@@ -25,7 +25,7 @@ export interface CreateOrderPayload {
   items: OrderItem[];
   subtotal: number;
   totalAmount: number;
-  taxes?: Array<{name: string, rate: number, amount: number}>;
+  taxes?: Array<{ name: string; rate: number; amount: number }>;
   specialInstructions?: string;
 }
 
@@ -122,7 +122,7 @@ export async function deleteOrder(orderId: string): Promise<void> {
 export async function searchOrders(query: string): Promise<Order[]> {
   try {
     const response = await apiClient.get('/orders/search', {
-      params: { query }
+      params: { query },
     });
     console.log('[OrderAPI] Search results:', response.data);
     return response.data;

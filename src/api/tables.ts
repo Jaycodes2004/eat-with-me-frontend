@@ -13,15 +13,12 @@ const client = axios.create({
 client.interceptors.request.use((config) => {
   const token = localStorage.getItem('authToken');
   const restaurantId = localStorage.getItem('restaurantId');
-  
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  
   if (restaurantId) {
     config.headers['X-Restaurant-Id'] = restaurantId;
   }
-  
   return config;
 });
 
