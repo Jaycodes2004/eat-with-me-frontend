@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useAppContext, Table, TableStatus } from '../contexts/AppContext';
 import { Card, CardContent } from './ui/card';
@@ -65,8 +65,6 @@ export function TableManagement({ onNavigate }: TableManagementProps) {
   const [isCreatingTable, setIsCreatingTable] = useState(false);
   const [isDeletingTable, setIsDeletingTable] = useState<string | null>(null);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
-  const [needsScroll, setNeedsScroll] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const [newTableForm, setNewTableForm] = useState({
     number: '',
@@ -87,29 +85,6 @@ export function TableManagement({ onNavigate }: TableManagementProps) {
       })),
     );
   }, [tables]);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const measure = () => {
-      setNeedsScroll(el.scrollHeight > el.clientHeight + 4);
-    };
-
-    measure();
-
-    const resizeObserver = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(() => measure())
-      : null;
-
-    if (resizeObserver) resizeObserver.observe(el);
-    window.addEventListener('resize', measure);
-
-    return () => {
-      window.removeEventListener('resize', measure);
-      resizeObserver?.disconnect();
-    };
-  }, []);
 
   const stats = useMemo(() => getTableStats(), [getTableStats]);
 
@@ -315,7 +290,7 @@ export function TableManagement({ onNavigate }: TableManagementProps) {
   const checkoutFinal = checkoutSubtotal + checkoutGst;
 
   return (
-    <div ref={containerRef} className="p-4 space-y-6">
+    <div className="p-4 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
@@ -538,20 +513,38 @@ export function TableManagement({ onNavigate }: TableManagementProps) {
 
                       {table.status === 'reserved' && (
                         <div className="space-y-0.5">
-                          <div
-                            className={`font-medium truncate ${
-                              viewMode === 'compact' ? 'text-xs' : 'text-sm'
-                            }`}
-                          >
-                            {viewMode === 'compact'
-                              ? table.customer?.split(' ')[0]
-                              : table.customer}
-                          </div>
-                          <div className="text-xs opacity-75">
-                            {viewMode === 'compact'
-                              ? `${table.guests}g`
-                              : `${table.guests} guests`}
-                          </div>
+                          {(() => {
+                            const reservedFor = table.reservationName || table.customer;
+                            const timeLabel = table.reservationTime
+                              ? new Date(table.reservationTime).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })
+                              : null;
+                            return (
+                              <>
+                                <div
+                                  className={`font-medium truncate ${
+                                    viewMode === 'compact' ? 'text-xs' : 'text-sm'
+                                  }`}
+                                >
+                                  {viewMode === 'compact'
+                                    ? (reservedFor ?? 'Reserved')
+                                    : reservedFor ?? 'Reserved'}
+                                </div>
+                                <div className="text-xs opacity-75">
+                                  {viewMode === 'compact'
+                                    ? `${table.guests ?? table.capacity}g`
+                                    : `${table.guests ?? table.capacity} guests`}
+                                </div>
+                                {timeLabel && (
+                                  <div className="text-[11px] text-muted-foreground">
+                                    {timeLabel}
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       )}
 
@@ -1009,7 +1002,6 @@ export function TableManagement({ onNavigate }: TableManagementProps) {
           </div>
         </DialogContent>
       </Dialog>
-      {needsScroll && <div aria-hidden className="h-32 sm:h-40" />}
     </div>
   );
 }

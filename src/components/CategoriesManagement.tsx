@@ -693,8 +693,6 @@ export function CategoriesManagement() {
           </div>
         </DialogContent>
       </Dialog>
-      {/* Spacer to increase scroll height*/}
-			{<div aria-hidden className='h-32 sm:h-40' />}
     </div>
   );
 }

@@ -1653,11 +1653,6 @@ export function Settings() {
 				</TabsContent>
 			</Tabs>
 
-			{/* Spacer to increase scroll height*/}
-			<div
-				aria-hidden
-				className='h-32 sm:h-40'
-			/>
 		</div>
 	);
 }

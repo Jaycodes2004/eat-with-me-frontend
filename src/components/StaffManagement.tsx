@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAppContext } from '../contexts/AppContext';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -92,32 +92,6 @@ export function StaffManagement() {
     shiftType: 'Morning',
     openingCash: ''
   });
-
-  const [needsScroll, setNeedsScroll] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const measure = () => {
-      setNeedsScroll(el.scrollHeight > el.clientHeight + 4);
-    };
-
-    measure();
-
-    const resizeObserver = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(() => measure())
-      : null;
-
-    if (resizeObserver) resizeObserver.observe(el);
-    window.addEventListener('resize', measure);
-
-    return () => {
-      window.removeEventListener('resize', measure);
-      resizeObserver?.disconnect();
-    };
-  }, []);
 
   const permissions = useMemo(() => ([
     { id: 'dashboard', label: 'Dashboard', description: 'Access to main dashboard and overview', category: 'core' },
@@ -1351,7 +1325,6 @@ export function StaffManagement() {
           </div>
         </TabsContent>
       </Tabs>
-      {needsScroll && <div className="h-16" aria-hidden />}
     </div>
   );
 }

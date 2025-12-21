@@ -1,6 +1,6 @@
 /** @format */
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useAppContext } from '../contexts/AppContext';
 import type { Order } from '../contexts/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -66,36 +66,10 @@ export function KitchenDisplay() {
 	const [selectedOrderForDetails, setSelectedOrderForDetails] =
 		useState<KitchenOrder | null>(null);
 	const [activeTab, setActiveTab] = useState('live');
-	const [needsScroll, setNeedsScroll] = useState(false);
-	const containerRef = useRef<HTMLDivElement | null>(null);
 
 	const restaurantId =
 		(typeof window !== 'undefined' && localStorage.getItem('restaurantId')) ||
 		settings?.restaurantId;
-
-	useEffect(() => {
-		const el = containerRef.current;
-		if (!el) return;
-
-		const measure = () => {
-			setNeedsScroll(el.scrollHeight > el.clientHeight + 4);
-		};
-
-		measure();
-
-		const resizeObserver =
-			typeof ResizeObserver !== 'undefined'
-				? new ResizeObserver(() => measure())
-				: null;
-
-		if (resizeObserver) resizeObserver.observe(el);
-		window.addEventListener('resize', measure);
-
-		return () => {
-			window.removeEventListener('resize', measure);
-			resizeObserver?.disconnect();
-		};
-	}, []);
 
 	useKitchenLiveUpdates(!!restaurantId, (event) => {
 		if (event.type === 'created' && event.order) {
@@ -391,9 +365,7 @@ export function KitchenDisplay() {
 	);
 
 	return (
-		<div
-			ref={containerRef}
-			className='p-4 space-y-6'>
+		<div className='p-4 space-y-6'>
 			{/* Header */}
 			<div className='flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between'>
 				<div>
@@ -871,8 +843,6 @@ export function KitchenDisplay() {
 					)}
 				</DialogContent>
 			</Dialog>
-			{/* Spacer to increase scroll height*/}
-			{needsScroll && <div aria-hidden className='h-32 sm:h-40' />}
 		</div>
 	);
 }

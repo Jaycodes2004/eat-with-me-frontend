@@ -442,8 +442,11 @@ function AppContent() {
 				</div>
 			)}
 
-			{/* Main Content */}
-			<main className='flex-1 overflow-auto pb-28'>{renderScreen()}</main>
+			{/* Main Content with explicit spacer for scroll offset */}
+			<main className='flex-1 overflow-auto'>
+				{renderScreen()}
+				<div aria-hidden className='h-32 sm:h-40' />
+			</main>
 
 			{/* Quick Actions - Improved with better labels and layout */}
 			{showQuickActions && (

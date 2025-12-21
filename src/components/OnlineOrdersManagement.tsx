@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -63,8 +63,6 @@ export function OnlineOrdersManagement({ onNavigate, userRole }: OnlineOrdersPro
   const [selectedOrder, setSelectedOrder] = useState<OnlineOrder | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
 
-  const [needsScroll, setNeedsScroll] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Filter context orders for online platforms (not dine-in)
   const onlineOrders = contextOrders
@@ -174,31 +172,8 @@ export function OnlineOrdersManagement({ onNavigate, userRole }: OnlineOrdersPro
     return diffMinutes;
   };
 
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const measure = () => {
-      setNeedsScroll(el.scrollHeight > el.clientHeight + 4);
-    };
-
-    measure();
-
-    const resizeObserver = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(() => measure())
-      : null;
-
-    if (resizeObserver) resizeObserver.observe(el);
-    window.addEventListener('resize', measure);
-
-    return () => {
-      window.removeEventListener('resize', measure);
-      resizeObserver?.disconnect();
-    };
-  }, []);
-
   return (
-    <div ref={containerRef} className="flex-1 bg-background p-4 space-y-6 animate-slide-up">
+    <div className="flex-1 bg-background p-4 space-y-6 animate-slide-up">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -531,8 +506,6 @@ export function OnlineOrdersManagement({ onNavigate, userRole }: OnlineOrdersPro
           )}
         </DialogContent>
       </Dialog>
-
-      {needsScroll && <div aria-hidden className="h-32 sm:h-40" />}
     </div>
   );
 }
