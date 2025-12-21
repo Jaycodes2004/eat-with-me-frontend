@@ -25,6 +25,7 @@ type RecoveryMode = 'password' | 'restaurantId';
 export function ForgotPassword({ onSent, triggerClassName }: ForgotPasswordProps) {
 	const [open, setOpen] = useState(false);
 	const [email, setEmail] = useState('');
+	const [restaurantId, setRestaurantId] = useState('');
 	const [selectedMode, setSelectedMode] = useState<RecoveryMode | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [message, setMessage] = useState<string | null>(null);
@@ -32,6 +33,7 @@ export function ForgotPassword({ onSent, triggerClassName }: ForgotPasswordProps
 
 	const resetState = () => {
 		setEmail('');
+		setRestaurantId('');
 		setSelectedMode(null);
 		setIsSubmitting(false);
 		setMessage(null);
@@ -45,9 +47,17 @@ export function ForgotPassword({ onSent, triggerClassName }: ForgotPasswordProps
 			return;
 		}
 		const trimmedEmail = email.trim();
+		const trimmedRestaurantId = restaurantId.trim();
 
 		if (!trimmedEmail || !trimmedEmail.includes('@')) {
 			const validationMessage = 'Please enter a valid email address to continue.';
+			setError(validationMessage);
+			toast.error(validationMessage);
+			return;
+		}
+
+		if (selectedMode === 'password' && !trimmedRestaurantId) {
+			const validationMessage = 'Please enter your Restaurant ID to continue.';
 			setError(validationMessage);
 			toast.error(validationMessage);
 			return;
@@ -68,7 +78,10 @@ export function ForgotPassword({ onSent, triggerClassName }: ForgotPasswordProps
 		};
 
 		try {
-			await apiClient.post(endpoints[selectedMode], { email: trimmedEmail });
+			await apiClient.post(endpoints[selectedMode], {
+				email: trimmedEmail,
+				...(selectedMode === 'password' ? { restaurantId: trimmedRestaurantId } : {}),
+			});
 			const successMessage = successCopy[selectedMode];
 			setMessage(successMessage);
 			toast.success(successMessage);
@@ -142,6 +155,27 @@ export function ForgotPassword({ onSent, triggerClassName }: ForgotPasswordProps
 					</div>
 				) : (
 					<form onSubmit={handleSubmit} className="space-y-4">
+						{selectedMode === 'password' && (
+							<div className="space-y-2">
+								<Label htmlFor="forgot-recovery-restaurant-id">Restaurant ID</Label>
+								<Input
+									id="forgot-recovery-restaurant-id"
+									placeholder="Enter your Restaurant ID"
+									value={restaurantId}
+									onChange={(event) => {
+										setRestaurantId(event.target.value);
+										if (error) {
+											setError(null);
+										}
+									}}
+									required
+								/>
+								<p className="text-xs text-muted-foreground">
+									This helps us verify your account before sending the reset link.
+								</p>
+							</div>
+						)}
+
 						<div className="space-y-2">
 							<Label htmlFor="forgot-recovery-email">Email address</Label>
 							<Input
