@@ -156,7 +156,7 @@ export function subscribeToOrderUpdates(
   onError: (error: any) => void
 ): () => void {
   const eventSource = new EventSource(
-    `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000/api'}/orders/stream`
+    `${process.env.VITE_API_URL || 'http://localhost:5000/api'}/orders/stream`
   );
 
   eventSource.onmessage = (event) => {
