@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAppContext } from '../contexts/AppContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -6,6 +6,7 @@ import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { AIInsights } from './AIInsights';
+import apiClient from '../lib/api';
 import { 
   TrendingUp, 
   ShoppingBag, 
@@ -41,6 +42,7 @@ interface DashboardProps {
 
 export function Dashboard({ onNavigate }: DashboardProps) {
   const [dateFilter, setDateFilter] = useState<'today' | 'yesterday' | 'week' | 'month' | 'all'>('today');
+  const [tenantRestaurantId, setTenantRestaurantId] = useState('');
   
   const { 
     orders, 
@@ -55,6 +57,31 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     getOrderStatsByDateFilter,
     getOrdersByDateFilter
   } = useAppContext();
+
+  // Fetch restaurantId from tenant settings (backend) with local/context fallback
+  useEffect(() => {
+    const localRestaurantId =
+      sessionStorage.getItem('restaurantId') ||
+      localStorage.getItem('restaurantId') ||
+      '';
+
+    // Seed with context/local immediately to avoid blank render
+    setTenantRestaurantId(settings.restaurantId || localRestaurantId);
+
+    const fetchTenant = async () => {
+      try {
+        const response = await apiClient.get('/settings');
+        const tenantData = response.data?.data ?? response.data;
+        setTenantRestaurantId(
+          tenantData?.restaurantId ?? settings.restaurantId ?? localRestaurantId
+        );
+      } catch (error) {
+        console.error('Failed to fetch tenant settings for restaurantId', error);
+      }
+    };
+
+    fetchTenant();
+  }, [settings.restaurantId]);
 
   // Early return if essential data is not loaded
   if (!settings || !getOrderStatsByDateFilter) {
@@ -159,7 +186,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         <div>
           <h1 className="text-primary">Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 17 ? 'Afternoon' : 'Evening'}!</h1>
           <p className="text-muted-foreground">
-            Here's your restaurant overview with real-time insights • {settings.restaurantName}
+            Here's your restaurant overview with real-time insights • {tenantRestaurantId || '—'}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
