@@ -717,9 +717,14 @@ interface AppContextType {
 	getOrderById: (id: string) => Order | undefined;
 	suppliers: Supplier[];
 	updateSuppliers: (suppliers: Supplier[]) => void;
-	addSupplier: (supplier: Supplier) => void;
-	updateSupplier: (id: string, updates: Partial<Supplier>) => void;
-	deleteSupplier: (id: string) => void;
+	addSupplier: (
+		payload: Omit<
+			Supplier,
+			'id' | 'rating' | 'totalOrders' | 'totalAmount' | 'lastOrderDate'
+		>
+	) => Promise<Supplier>;
+	updateSupplier: (id: string, updates: Partial<Supplier>) => Promise<Supplier>;
+	deleteSupplier: (id: string) => Promise<void>;
 
 	customers: Customer[];
 	updateCustomers: (customers: Customer[]) => void;
@@ -2021,8 +2026,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 	};
 
 	const mapSettingsFromApi = useCallback((data: any): AppSettings => {
+		// Backend responses wrap payload under data; unwrap to read actual settings
+		const payload = data?.data ?? data;
 		const parsedTaxRules = parseJsonArray<TaxRule>(
-			data?.taxRules,
+			payload?.taxRules,
 			defaultSettings.taxRules
 		);
 
@@ -2031,63 +2038,64 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 
 			// prefer restaurantName, fall back to name
 			restaurantName:
-				data?.restaurantName ?? data?.name ?? defaultSettings.restaurantName,
+				payload?.restaurantName ?? payload?.name ?? defaultSettings.restaurantName,
 
-			country: data?.country ?? defaultSettings.country,
-			currency: data?.currency ?? defaultSettings.currency,
-			currencySymbol: data?.currencySymbol ?? defaultSettings.currencySymbol,
+			country: payload?.country ?? defaultSettings.country,
+			currency: payload?.currency ?? defaultSettings.currency,
+			currencySymbol:
+				payload?.currencySymbol ?? defaultSettings.currencySymbol,
 
-			whatsappApiKey: data?.whatsappApiKey ?? '',
-			whatsappPhoneNumber: data?.whatsappPhoneNumber ?? '',
+			whatsappApiKey: payload?.whatsappApiKey ?? '',
+			whatsappPhoneNumber: payload?.whatsappPhoneNumber ?? '',
 
 			taxRules: parsedTaxRules,
 			defaultTaxCategory:
-				data?.defaultTaxCategory ?? defaultSettings.defaultTaxCategory,
+				payload?.defaultTaxCategory ?? defaultSettings.defaultTaxCategory,
 
-			theme: data?.theme?.toLowerCase?.() === 'dark' ? 'dark' : 'light',
-			language: data?.language ?? defaultSettings.language,
+			theme: payload?.theme?.toLowerCase?.() === 'dark' ? 'dark' : 'light',
+			language: payload?.language ?? defaultSettings.language,
 			notifications:
-				typeof data?.notifications === 'boolean'
-					? data.notifications
+				typeof payload?.notifications === 'boolean'
+					? payload.notifications
 					: defaultSettings.notifications,
 			autoBackup:
-				typeof data?.autoBackup === 'boolean'
-					? data.autoBackup
+				typeof payload?.autoBackup === 'boolean'
+					? payload.autoBackup
 					: defaultSettings.autoBackup,
 			multiLocation:
-				typeof data?.multiLocation === 'boolean'
-					? data.multiLocation
+				typeof payload?.multiLocation === 'boolean'
+					? payload.multiLocation
 					: defaultSettings.multiLocation,
 			loyaltyEnabled:
-				typeof data?.loyaltyEnabled === 'boolean'
-					? data.loyaltyEnabled
+				typeof payload?.loyaltyEnabled === 'boolean'
+					? payload.loyaltyEnabled
 					: defaultSettings.loyaltyEnabled,
 			loyaltyPointsPerCurrency:
-				typeof data?.loyaltyPointsPerCurrency === 'number'
-					? data.loyaltyPointsPerCurrency
+				typeof payload?.loyaltyPointsPerCurrency === 'number'
+					? payload.loyaltyPointsPerCurrency
 					: defaultSettings.loyaltyPointsPerCurrency,
 
 			// prefer business* fields, fall back to generic address/phone/email
 			businessAddress:
-				data?.businessAddress ??
-				data?.address ??
+				payload?.businessAddress ??
+				payload?.address ??
 				defaultSettings.businessAddress,
 			businessPhone:
-				data?.businessPhone ?? data?.phone ?? defaultSettings.businessPhone,
+				payload?.businessPhone ?? payload?.phone ?? defaultSettings.businessPhone,
 			businessEmail:
-				data?.businessEmail ?? data?.email ?? defaultSettings.businessEmail,
+				payload?.businessEmail ?? payload?.email ?? defaultSettings.businessEmail,
 
-			taxNumber: data?.taxNumber ?? defaultSettings.taxNumber,
-			fssaiNumber: data?.fssaiNumber ?? defaultSettings.fssaiNumber,
+			taxNumber: payload?.taxNumber ?? defaultSettings.taxNumber,
+			fssaiNumber: payload?.fssaiNumber ?? defaultSettings.fssaiNumber,
 		};
-	});
+	}, [parseJsonArray]);
 
 	const mapSettingsPatchToApi = useCallback(
 		(patch: Partial<AppSettings>): Record<string, unknown> => {
 			const payload: Record<string, unknown> = {};
 
 			if (Object.prototype.hasOwnProperty.call(patch, 'restaurantName')) {
-				payload.name = patch.restaurantName ?? null;
+				payload.restaurantName = patch.restaurantName ?? null;
 			}
 			if (Object.prototype.hasOwnProperty.call(patch, 'country')) {
 				payload.country = patch.country ?? null;
@@ -2639,7 +2647,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 			return {
 				id: staffMember?.id ?? '',
 				name: staffMember?.name ?? '',
-				role: staffMember?.role ?? staffMember?.roleName ?? 'Staff',
+				role:
+					staffMember?.role?.name ??
+					staffMember?.role ??
+					staffMember?.roleName ??
+					'Staff',
 				phone: staffMember?.phone ?? '',
 				email: staffMember?.email ?? undefined,
 				pin: staffMember?.pin ?? undefined,
@@ -3170,17 +3182,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 	const addShift = useCallback(
 		async (payload: CreateShiftPayload): Promise<Shift> => {
 			try {
+				const startTimeIso = payload.startTime
+					? new Date(payload.startTime).toISOString()
+					: new Date().toISOString();
+				const endTimeIso = payload.endTime
+					? new Date(payload.endTime).toISOString()
+					: undefined;
+				const dateIso = payload.date
+					? new Date(payload.date).toISOString()
+					: startTimeIso;
+				const statusForApi = payload.status
+					? payload.status.toString().toUpperCase()
+					: undefined;
+
 				const response = await apiClient.post('/shifts', {
 					staffId: payload.staffId,
-					startTime: payload.startTime,
-					endTime: payload.endTime,
+					startTime: startTimeIso,
+					endTime: endTimeIso,
 					shiftType: payload.shiftType,
 					openingCash: payload.openingCash,
 					closingCash: payload.closingCash,
 					totalSales: payload.totalSales,
 					tips: payload.tips,
-					status: payload.status,
-					date: payload.date,
+					status: statusForApi,
+					date: dateIso,
 				});
 
 				const createdShift = mapShiftFromApi(response.data);
@@ -3197,12 +3222,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 	const updateShift = useCallback(
 		async (id: string, updates: UpdateShiftPayload): Promise<Shift> => {
 			try {
+				const statusForApi = updates.status
+					? updates.status.toString().toUpperCase()
+					: undefined;
+				const startTimeIso = updates.startTime
+					? new Date(updates.startTime).toISOString()
+					: undefined;
+				const endTimeIso = updates.endTime
+					? new Date(updates.endTime).toISOString()
+					: undefined;
+				const dateIso = updates.date
+					? new Date(updates.date).toISOString()
+					: undefined;
+
 				const response = await apiClient.put(`/shifts/${id}`, {
 					...updates,
 					openingCash: updates.openingCash,
 					closingCash: updates.closingCash,
 					totalSales: updates.totalSales,
 					tips: updates.tips,
+					status: statusForApi,
+					startTime: startTimeIso,
+					endTime: endTimeIso,
+					date: dateIso,
 				});
 
 				const updatedShift = mapShiftFromApi(response.data);
@@ -4410,7 +4452,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 			inventoryItemId: string | null;
 		}>;
 	}): Promise<PurchaseOrder> => {
-		const res = await apiClient.post('/supplier/purchases', payload);
+		const res = await apiClient.post('/purchase', payload);
 		const p = res.data;
 		const mapped: PurchaseOrder = {
 			id: p.id,
@@ -4438,7 +4480,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 		id: string,
 		updates: Partial<PurchaseOrder>
 	): Promise<PurchaseOrder> => {
-		const res = await apiClient.put(`/supplier/purchases/${id}`, updates);
+		const body: Record<string, unknown> = {};
+
+		if (updates.expectedDate) {
+			body.date = new Date(updates.expectedDate).toISOString();
+		}
+		if (updates.totalAmount !== undefined) {
+			body.totalAmount = updates.totalAmount;
+		}
+		if (updates.notes !== undefined) {
+			body.notes = updates.notes;
+		}
+		if (updates.status) {
+			body.status = updates.status;
+		}
+		if (updates.deliveredDate) {
+			body.deliveredDate = new Date(updates.deliveredDate).toISOString();
+		}
+
+		const res = await apiClient.put(`/purchase/${id}`, body);
 		const p = res.data;
 		const mapped: PurchaseOrder = {
 			id: p.id,
@@ -4463,7 +4523,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 	};
 
 	const deletePurchaseOrder = async (id: string): Promise<void> => {
-		await apiClient.delete(`/supplier/purchases/${id}`);
+		await apiClient.delete(`/purchase/${id}`);
 		setPurchaseOrders((prev) => prev.filter((o) => o.id !== id));
 	};
 

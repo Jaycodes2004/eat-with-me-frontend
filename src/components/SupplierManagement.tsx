@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useAppContext, Supplier, PurchaseOrder } from "../contexts/AppContext";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
@@ -139,6 +139,8 @@ export function SupplierManagement() {
   const [currentOrderItem, setCurrentOrderItem] =
     useState<PurchaseOrderItemDraft>(createEmptyPurchaseOrderItem());
 
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
   const supplierCategories = getCategoriesByType("supplier");
 
   const supplierCategoryOptions = useMemo<string[]>(() => {
@@ -202,6 +204,7 @@ export function SupplierManagement() {
     }
 
     try {
+      const status: Supplier['status'] = 'active';
       const payload = {
         name,
         category,
@@ -211,7 +214,7 @@ export function SupplierManagement() {
         address: newSupplier.address.trim(),
         gstNumber: newSupplier.gstNumber.trim(),
         creditDays: newSupplier.creditDays,
-        status: "active",
+        status,
       };
       const created = await addSupplier(payload);
 
@@ -397,8 +400,7 @@ export function SupplierManagement() {
       const payload = {
         supplierId: newOrder.supplierId,
         invoiceNumber: "", // optional or generated on backend
-        date: new Date().toISOString(),
-        expectedDate: newOrder.expectedDate,
+        date: new Date(newOrder.expectedDate).toISOString(),
         totalAmount,
         notes: newOrder.notes,
         items: newOrder.items.map((item) => ({

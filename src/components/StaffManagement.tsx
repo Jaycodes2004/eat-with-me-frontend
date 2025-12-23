@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppContext } from '../contexts/AppContext';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -80,6 +80,7 @@ export function StaffManagement() {
   const [newStaff, setNewStaff] = useState({
     name: '',
     role: '',
+    roleId: '' as string | undefined,
     phone: '',
     email: '',
     pin: '',
@@ -114,21 +115,26 @@ export function StaffManagement() {
   ]), []);
 
   const roleOptions = useMemo(() => {
-    const contextNames = roleDefinitions
-      .map(role => role.name?.trim())
-      .filter((name): name is string => Boolean(name));
-    const uniqueContextNames = Array.from(new Set(contextNames));
-    if (uniqueContextNames.length > 0) {
-      return uniqueContextNames;
+    const contextRoles = roleDefinitions
+      .map(role => ({ id: role.id, name: role.name?.trim() }))
+      .filter((role): role is { id: string; name: string } => Boolean(role.name));
+
+    if (contextRoles.length > 0) {
+      return contextRoles;
     }
 
     const staffRoleNames = Array.from(new Set(staff.map(member => member.role).filter(Boolean)));
     if (staffRoleNames.length > 0) {
-      return staffRoleNames;
+      return staffRoleNames.map(name => ({ id: name, name }));
     }
 
-    return DEFAULT_ROLE_NAMES;
+    return DEFAULT_ROLE_NAMES.map(name => ({ id: name, name }));
   }, [roleDefinitions, staff]);
+
+  const roleNamesForFilter = useMemo(() => {
+    const names = roleOptions.map(opt => opt.name).filter(Boolean);
+    return Array.from(new Set(names.length ? names : DEFAULT_ROLE_NAMES));
+  }, [roleOptions]);
 
   const findRoleDefinition = useCallback((roleName: string) => {
     if (!roleName) {
@@ -344,9 +350,11 @@ export function StaffManagement() {
       const createdStaff = await addStaff({
         name: newStaff.name.trim(),
         roleName: newStaff.role,
+        roleId: newStaff.roleId,
         phone: newStaff.phone.trim(),
         email: newStaff.email.trim() || undefined,
         pin: newStaff.pin,
+        password: newStaff.pin,
         salary: salaryValue,
         permissions: effectivePermissions,
         dashboardModules: effectiveDashboardModules,
@@ -365,6 +373,7 @@ export function StaffManagement() {
       setNewStaff({
         name: '',
         role: '',
+        roleId: undefined,
         phone: '',
         email: '',
         pin: '',
@@ -437,7 +446,7 @@ export function StaffManagement() {
   const stats = useMemo(() => {
     const totalStaff = staff.length;
     const activeStaff = staff.filter(s => s.isActive !== false).length;
-    const onDuty = shifts.filter(shift => shift.status === 'Active').length;
+    const onDuty = shifts.filter(shift => shift.status?.toLowerCase?.() === 'active').length;
     const totalSalary = staff.reduce((sum, member) => sum + Number(member.salary ?? 0), 0);
     const avgSalary = totalStaff > 0 ? Math.round(totalSalary / totalStaff) : 0;
 
@@ -462,7 +471,8 @@ export function StaffManagement() {
     }
 
     try {
-      const startTime = new Date().toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
+      const now = new Date();
+      const startTime = now.toISOString();
 
       await addShift({
         staffId: selectedStaffForShift,
@@ -470,7 +480,7 @@ export function StaffManagement() {
         openingCash: Number(newShiftDetails.openingCash),
         startTime,
         status: 'Active',
-        date: new Date().toISOString(),
+        date: now.toISOString(),
       });
 
       const staffMember = staff.find(s => s.id === selectedStaffForShift);
@@ -512,7 +522,7 @@ export function StaffManagement() {
     const tips = Number(tipsInput);
 
     try {
-      const endTime = new Date().toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
+      const endTime = new Date().toISOString();
       const updatedShift = await updateShift(shiftId, {
         endTime,
         closingCash,
@@ -577,8 +587,10 @@ export function StaffManagement() {
   };
 
   const getActiveShiftForStaff = (staffId: string) => {
-    return shifts.find(shift => shift.staffId === staffId && shift.status === 'Active');
+    return shifts.find(shift => shift.staffId === staffId && shift.status?.toLowerCase?.() === 'active');
   };
+
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   return (
     <div ref={containerRef} className="p-4 space-y-6 h-full overflow-auto">
@@ -616,13 +628,26 @@ export function StaffManagement() {
                 </div>
                 <div>
                   <Label htmlFor="role">Role</Label>
-                  <Select value={newStaff.role} onValueChange={(value: string) => updateNewStaffField('role', value)}>
+                  <Select
+                    value={newStaff.roleId || newStaff.role}
+                    onValueChange={(value: string) => {
+                      const selected = roleOptions.find(opt => opt.id === value || opt.name === value);
+                      setNewStaff(prev => ({
+                        ...prev,
+                        role: selected?.name || value,
+                        roleId: selected?.id,
+                      }));
+                      if (errors.role) {
+                        setErrors(prev => ({ ...prev, role: '' }));
+                      }
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
                       {roleOptions.map(role => (
-                        <SelectItem key={role} value={role}>{role}</SelectItem>
+                        <SelectItem key={role.id} value={role.id}>{role.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -812,7 +837,7 @@ export function StaffManagement() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Roles</SelectItem>
-            {roleOptions.map(role => (
+            {roleNamesForFilter.map(role => (
               <SelectItem key={role} value={role}>{role}</SelectItem>
             ))}
           </SelectContent>
@@ -984,7 +1009,7 @@ export function StaffManagement() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {shifts.filter(shift => shift.status === 'Active').map(shift => {
+                  {shifts.filter(shift => shift.status?.toLowerCase?.() === 'active').map(shift => {
                     const staffMember = staff.find(s => s.id === shift.staffId);
                     return (
                       <div key={shift.id} className="flex items-center justify-between p-3 border rounded-lg">
@@ -1009,7 +1034,7 @@ export function StaffManagement() {
                       </div>
                     );
                   })}
-                  {shifts.filter(shift => shift.status === 'Active').length === 0 && (
+                  {shifts.filter(shift => shift.status?.toLowerCase?.() === 'active').length === 0 && (
                     <div className="text-center py-8 text-muted-foreground">
                       No active shifts
                     </div>
@@ -1029,7 +1054,7 @@ export function StaffManagement() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {shifts.filter(shift => shift.status === 'Completed').slice(0, 5).map(shift => {
+                {shifts.filter(shift => shift.status?.toLowerCase?.() === 'completed').slice(0, 5).map(shift => {
                   const staffMember = staff.find(s => s.id === shift.staffId);
                   return (
                     <div key={shift.id} className="flex items-center justify-between p-3 border rounded-lg">
